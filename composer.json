@@ -1,0 +1,14 @@
+{
+    "name": "nox7/nox",
+    "description": "A straightforward and dependency-light web framework with minimal syntax learning curves.",
+    "type": "library",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Nox7",
+            "email": "nox7@animetavern.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {}
+}

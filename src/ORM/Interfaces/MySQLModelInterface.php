@@ -1,6 +1,6 @@
 <?php
 
-	namespace Nox\ORM;
+	namespace Nox\ORM\Interfaces;
 
 	interface MySQLModelInterface{
 		public function getInstanceName(): string;

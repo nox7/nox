@@ -3,9 +3,10 @@
 
 	use Nox\ORM\Abyss;
 	use Nox\RenderEngine\Renderer;
+	use Nox\Router\Exceptions\InvalidJSON;
 
-	require_once __DIR__ . "/../Attributes/Route.php";
-	require_once __DIR__ . "/../exceptions/InvalidJSON.php";
+	require_once __DIR__ . "/Attributes/Route.php";
+	require_once __DIR__ . "/Exceptions/InvalidJSON.php";
 
 	class Router{
 

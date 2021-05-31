@@ -1,11 +1,13 @@
 <?php
 
-	namespace AttrRouter\HttpHelpers;
+	namespace Nox\Http;
+
+	use JetBrains\PhpStorm\ArrayShape;
 
 	/**
 	* An abstraction to handle responses back to the client/router system.
 	*/
-	class HttpResponse{
+	class Response{
 
 		/**
 		* Quick sets the Content-Type return headers to be JSON and UTF8 encoding
@@ -49,6 +51,7 @@
 		* @param int $statusCode (optional)
 		* @return array
 		*/
+		#[ArrayShape(["path" => "string", "statusCode" => "int"])]
 		public function redirect(string $path, int $statusCode = 302): array{
 			return [
 				"path"=>$path,

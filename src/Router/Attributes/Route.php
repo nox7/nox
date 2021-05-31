@@ -1,4 +1,8 @@
 <?php
+
+	namespace Nox\Router\Attributes;
+
+	#[\Attribute]
 	#[Attribute(Attribute::TARGET_METHOD)]
 	class Route{
 

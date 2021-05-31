@@ -1,10 +1,12 @@
 <?php
 	namespace Nox\RenderEngine;
 
-	require_once __DIR__ . "/exceptions/LayoutDoesNotExist.php";
+	require_once __DIR__ . "/Exceptions/LayoutDoesNotExist.php";
 	require_once __DIR__ . "/Parser.php";
-	require_once __DIR__ . "/../router/classes/ViewSettings.php";
+	require_once __DIR__ . "/../Router/ViewSettings.php";
 
+	use Nox\RenderEngine\Exceptions\LayoutDoesNotExist;
+	use Nox\RenderEngine\Exceptions\ParseError;
 	use Nox\Router\ViewSettings;
 
 	class Renderer{

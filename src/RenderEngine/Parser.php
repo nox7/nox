@@ -1,7 +1,9 @@
 <?php
 	namespace Nox\RenderEngine;
 
-	require_once __DIR__ . "/exceptions/ParseError.php";
+	use Nox\RenderEngine\Exceptions\ParseError;
+
+	require_once __DIR__ . "/Exceptions/ParseError.php";
 
 	class Parser{
 
@@ -15,7 +17,7 @@
 			$this->fileLocation = $fileLocation;
 			// Include the file to parse its inner PHP code
 			ob_start();
-			include($fileLocation);
+			include $fileLocation;
 			$this->fileContents = ob_get_contents();
 			ob_end_clean();
 		}

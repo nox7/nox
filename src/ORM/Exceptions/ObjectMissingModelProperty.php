@@ -1,5 +1,5 @@
 <?php
 
-	namespace Nox\ORM;
+	namespace Nox\ORM\Exceptions;
 
 	class ObjectMissingModelProperty extends \Exception{}

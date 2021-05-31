@@ -2,9 +2,12 @@
 
 	namespace Nox\ORM;
 
+	use Nox\ORM\Exceptions\ObjectMissingModelProperty;
+	use Nox\ORM\Interfaces\ModelInstance;
+	use Nox\ORM\Interfaces\MySQLModelInterface;
 	use Nox\ORM\MySQLDataTypes\DataType;
 
-	require_once __DIR__ . "/exceptions/ObjectMissingModelProperty.php";
+	require_once __DIR__ . "/Exceptions/ObjectMissingModelProperty.php";
 
 	class Abyss{
 

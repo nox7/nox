@@ -1,5 +1,5 @@
 <?php
 
-	namespace Nox\Router;
+	namespace Nox\Router\Exceptions;
 
 	class InvalidJSON extends \Exception{}

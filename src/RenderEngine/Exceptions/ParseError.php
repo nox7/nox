@@ -1,5 +1,5 @@
 <?php
 
-	namespace Nox\RenderEngine;
+	namespace Nox\RenderEngine\Exceptions;
 
 	class ParseError extends \Exception{}

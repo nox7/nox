@@ -3,23 +3,30 @@
 	namespace Nox\Router;
 
 	use Nox\Http\Redirect;
+	use Nox\Router\Exceptions\RecursionDepthExceeded;
 
 	require_once __DIR__ . "/ViewSettings.php";
 	require_once __DIR__ . "/Router.php";
 
 	class RequestHandler{
 
+		/**
+		 * The maximum times a RequestHandler can be created in one request.
+		 */
+		public const MAX_RECURSION_DEPTH = 10;
+
 		public function __construct(
 			public Router $router,
 			public string $requestPath,
 			public string $requestType,
+			public int $recursionDepth = 0,
 		){
 			$this->requestPath = sprintf("/%s", $requestPath);
 		}
 
 		/**
-		* Process an HTTP request
-		*/
+		 * Process an HTTP request
+		 */
 		public function getRouteResult(): mixed{
 			// $clientIP = $_SERVER['REMOTE_ADDR'];
 
@@ -67,14 +74,20 @@
 			}elseif ($routeResult !== null){
 				print($routeResult);
 			}else{
-				http_response_code(404);
-				if ($this->requestPath !== $this->router->noxConfig['404-route']) {
-					$notFoundRequestHandler = new RequestHandler($this->router, "/404", "GET");
-					$notFoundRequestHandler->processRequest();
+				// TODO Allow an attribute to set the response code and route to use
+				if ($this->recursionDepth < self::MAX_RECURSION_DEPTH) {
+					http_response_code(404);
+					if ($this->requestPath !== $this->router->noxConfig['404-route']) {
+						$notFoundRequestHandler = new RequestHandler($this->router, "404", "GET", ++$this->recursionDepth);
+						$notFoundRequestHandler->processRequest();
+					} else {
+						// The current request path IS the 404-route
+						// That means the 404 404'd
+						exit();
+					}
 				}else{
-					// The current request path IS the 404-route
-					// That means the 404 404'd
-					exit();
+					// Too much recursion
+					throw new RecursionDepthExceeded("Too many recursive requests. Last request processed was " . $this->requestPath);
 				}
 			}
 		}

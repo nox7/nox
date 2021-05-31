@@ -30,21 +30,25 @@
 				// Check for a static file
 				if ($this->router->staticFileHandler->doesStaticFileExist($this->requestPath)){
 					$mimeType = $this->router->staticFileHandler->getStaticFileMime($this->requestPath);
-					if ($mimeType === null){
-						$mimeType = "text/plain";
-					}
 
-					/**
-					* Set the cache-control header if there is a cache config for
-					* the given mime type
-					*/
-					$cacheTime = $this->router->staticFileHandler->getCacheTimeForMime($mimeType);
-					if ($cacheTime !== null){
-						header(sprintf("cache-control: max-age=%d", $cacheTime));
-					}
+					// Do not serve unknown mime types
+					if ($mimeType !== null) {
+						/*if ($mimeType === null){
+							$mimeType = "text/plain";
+						}*/
 
-					header("content-type: $mimeType");
-					return $this->router->staticFileHandler->getStaticFileContents($this->requestPath);
+						/**
+						 * Set the cache-control header if there is a cache config for
+						 * the given mime type
+						 */
+						$cacheTime = $this->router->staticFileHandler->getCacheTimeForMime($mimeType);
+						if ($cacheTime !== null) {
+							header(sprintf("cache-control: max-age=%d", $cacheTime));
+						}
+
+						header("content-type: $mimeType");
+						return $this->router->staticFileHandler->getStaticFileContents($this->requestPath);
+					}
 				}
 			}
 

@@ -150,11 +150,12 @@
 					$attemptRouting = false;
 
 					// Loop through attributes and only check the route here
+					/** @var \ReflectionAttribute $attribute */
 					foreach ($attributes as $attribute){
 						$attrName = $attribute->getName();
 
 						// Check if this attribute name is "Route"
-						if ($attrName === "Route"){
+						if ($attrName === "Nox\\Router\\Attributes\\Route"){
 							$routeAttribute = $attribute->newInstance();
 
 							// Check if the first argument (request method arg)
@@ -192,8 +193,8 @@
 					// The first one to pass all should be invoked as the correct
 					// route.
 					$acceptedRoutes = [];
-					foreach ($routeMethodsToAttempt as $method){
-						$attributes = $method->getAttributes();
+					foreach ($routeMethodsToAttempt as $routableMethod){
+						$attributes = $routableMethod->getAttributes();
 
 						// Check everything except the route
 						$passedAttributes = 0;
@@ -202,7 +203,7 @@
 						foreach ($attributes as $attribute){
 							$attrName = $attribute->getName();
 
-							if ($attrName !== "Route"){
+							if ($attrName !== "Nox\\Router\\Attributes\\Route"){
 								$attrInstance = $attribute->newInstance();
 								if ($attrInstance->passed){
 									++$passedAttributes;
@@ -215,7 +216,7 @@
 						}
 
 						if ($passedAttributes === $neededToRoute){
-							return $method->invoke($classInstance);
+							return $routableMethod->invoke($classInstance);
 						}
 					}
 				}

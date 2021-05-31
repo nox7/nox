@@ -38,7 +38,6 @@
 			string $dest,
 			int $permissions = 0755
 		): bool{
-			$sourceHash = self::hashDirectory($source);
 			// Check for symlinks
 			if (is_link($source)) {
 				return symlink(readlink($source), $dest);
@@ -51,41 +50,59 @@
 
 			// Make destination directory
 			if (!is_dir($dest)) {
-				mkdir($dest, $permissions);
+				mkdir($dest, $permissions, true);
 			}
 
 			// Loop through the folder
-			$dir = dir($source);
-			while (false !== $entry = $dir->read()) {
-				// Skip pointers
-				if ($entry == '.' || $entry == '..') {
-					continue;
+			if (is_dir($source)) {
+				$dir = dir($source);
+				$sourceHash = self::hashDirectory($source);
+				while (false !== $entry = $dir->read()) {
+					// Skip pointers
+					if ($entry == '.' || $entry == '..') {
+						continue;
+					}
+
+					$sourcePath = sprintf("%s/%s", $source, $entry);
+
+					if (is_dir($sourcePath)) {
+						// Deep copy directories
+						if ($sourceHash != self::hashDirectory($source . "/" . $entry)) {
+							self::copyDirectory("$source/$entry", "$dest/$entry", $permissions);
+						} else {
+							var_dump(sprintf("Ignoring %s", $source . "/" . $entry));
+						}
+					}else{
+						// It's a file. Copy it
+						copy($sourcePath, sprintf("%s/%s", $dest, $entry));
+					}
 				}
 
-				// Deep copy directories
-				if($sourceHash != self::hashDirectory($source."/".$entry)){
-					self::copyDirectory("$source/$entry", "$dest/$entry", $permissions);
-				}
+				// Clean up
+				$dir->close();
 			}
 
-			// Clean up
-			$dir->close();
 			return true;
 		}
 
 		/**
-		 * In case of coping a directory inside itself, there is a need to hash check the directory otherwise and infinite loop of coping is generated
+		 * In case of coping a directory inside itself, there is a need to hash check the directory otherwise and infinite loop of copying is generated
 		 */
-		public static function hashDirectory(string $directory): bool{
-			if (! is_dir($directory)){ return false; }
+		public static function hashDirectory(string $directory): string{
+			if (!is_dir($directory)){
+				throw new \ValueError("$directory is not a directory");
+			}
 
 			$files = array();
 			$dir = dir($directory);
 
 			while (false !== ($file = $dir->read())){
 				if ($file != '.' and $file != '..') {
-					if (is_dir($directory . '/' . $file)) { $files[] = self::hashDirectory($directory . '/' . $file); }
-					else { $files[] = md5_file($directory . '/' . $file); }
+					if (is_dir($directory . '/' . $file)){
+						$files[] = self::hashDirectory($directory . '/' . $file);
+					} else {
+						$files[] = md5_file($directory . '/' . $file);
+					}
 				}
 			}
 

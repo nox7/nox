@@ -81,30 +81,41 @@ To make duplicate code less abundant, you can create custom attributes that the 
 #[RequireLogin()]
 ```
 
-Your attribute should implement the RouterAttribute from the Nox library. It only requires that your attribute class have a public function named `getPassed` that returns a boolean for the router to check if the attribute should allow the route to proceed. Here is an example.
+Your attribute should implement the RouterAttribute from the Nox library. It requires you to implement a `getAttributeResponse` method that should return an AttributeResponse. This allows attributes to simply allow a route to be passed over or chosen based on custom logic.
+
+You can also force HTTP response codes or silent route request rewrites (such as a 403 when a user is not logged in).
 
 ```php
 <?php
 
     use \Nox\Router\Interfaces\RouteAttribute;
+    use \Nox\Router\AttributeResponse;
 
     // Set the PHP attribute to only be used on class methods
     #[Attribute(Attribute::TARGET_METHOD)]
     class RequireLogin implements RouteAttribute{
-        public bool $passed;
+        public AttributeResponse $attributeResponse;
     
         public function __construct(){
+            // By default, tell the response this route is usable
+            $this->attributeResponse = new AttributeResponse(
+                isRouteUsable: true
+            );
+        
             // Check if the user is logged in
             $user = ?;
             if ($user->isLoggedIn()){
-                $this->passed = true;
+                $this->attributeResponse->isRouteUsable = true;
             }
             
-            $this->passed = false;
+            // Tell the router this route is not usable
+            // and a 403 should be given
+            $this->attributeResponse->isRouteUsable = false;
+            $this->attributeResponse->responseCode = 403;
         }
         
-        public function getPassed(): bool{
-            return $this->passed;
+        public function getAttributeResponse(): AttributeResponse{
+            return $this->attributeResponse;
         }
     }
 ```

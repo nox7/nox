@@ -1,12 +1,15 @@
 <?php
-	class User implements \Nox\ORM\ModelInstance
+
+	use Nox\ORM\Interfaces\MySQLModelInterface;
+
+	class User implements \Nox\ORM\Interfaces\ModelInstance
 	{
 		public ?int $id = null;
 		public string $name;
 		public string $email;
 		public ?int $creationTimestamp;
 
-		public static function getModel(): \Nox\ORM\MySQLModelInterface{
+		public static function getModel(): MySQLModelInterface{
 			return new UsersModel();
 		}
 

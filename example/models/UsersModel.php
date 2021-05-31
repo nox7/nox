@@ -1,10 +1,11 @@
 <?php
 
 	use \Nox\ORM\ColumnDefinition;
+	use \Nox\ORM\Interfaces\MySQLModelInterface;
 	use \Nox\ORM\MySQLDataTypes\Integer;
 	use \Nox\ORM\MySQLDataTypes\VariableCharacter;
 
-	class UsersModel implements \Nox\ORM\MySQLModelInterface {
+	class UsersModel implements MySQLModelInterface {
 
 		/**
 		 * The name of this Model in the MySQL database as a table

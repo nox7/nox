@@ -1,5 +1,6 @@
 <?php
 
+	use Nox\ORM\Abyss;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
 
 	class User implements \Nox\ORM\Interfaces\ModelInstance
@@ -14,7 +15,7 @@
 		}
 
 		public function save(): void{
-			$abyss = new \Nox\ORM\Abyss;
+			$abyss = new Abyss;
 			$rowID = $abyss->saveOrCreate($this);
 			if ($rowID !== null){
 				$this->id = $rowID;
@@ -22,7 +23,7 @@
 		}
 
 		public function delete(): void{
-			$abyss = new \Nox\ORM\Abyss;
+			$abyss = new Abyss;
 			$abyss->deleteRowByPrimaryKey($this);
 		}
 	}

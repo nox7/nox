@@ -14,9 +14,7 @@
 			public string $requestPath,
 			public string $requestType,
 		){
-			if (empty($this->requestPath)){
-				$this->requestPath = "/";
-			}
+			$this->requestPath = sprintf("/%s", $requestPath);
 		}
 
 		/**

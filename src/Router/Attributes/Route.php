@@ -2,8 +2,7 @@
 
 	namespace Nox\Router\Attributes;
 
-	#[\Attribute]
-	#[Attribute(Attribute::TARGET_METHOD)]
+	#[\Attribute(\Attribute::TARGET_METHOD)]
 	class Route{
 
 		public string $method;

@@ -9,6 +9,12 @@
 		public string $cacheFile = "";
 		public array $cacheConfig = [];
 
+		/**
+		 * The mime types that are recognized for static file serving. Identified by
+		 * the extension as the array key without a period (e.g, "css")
+		 */
+		public ?MimeTypes $mimeTypes = null;
+
 		public function setStaticFilesDirectory(string $directoryPath): void{
 			$this->staticDirectory = $directoryPath;
 		}
@@ -60,9 +66,10 @@
 		*/
 		public function getStaticFileMime(string $filePath): ?string{
 			$extension = pathinfo($filePath, PATHINFO_EXTENSION);
+			$extension_lowered = strtolower($extension);
 			if ($extension !== ""){
-				if (isset(MimeTypes::RECOGNIZED_EXTENSIONS[$extension])){
-					return MimeTypes::RECOGNIZED_EXTENSIONS[$extension];
+				if (array_key_exists($extension_lowered, $this->mimeTypes->recognizedExtensions)){
+					return $this->mimeTypes->recognizedExtensions[$extension_lowered];
 				}else{
 					return null;
 				}

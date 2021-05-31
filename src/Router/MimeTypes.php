@@ -3,18 +3,27 @@
 	namespace Nox\Router;
 
 	class MimeTypes{
-		const RECOGNIZED_EXTENSIONS = [
-			"css" => "text/css",
-			"jpg" => "image/jpeg",
-			"jpeg" => "image/jpeg",
-			"js" => "text/javascript",
-			"mjs" => "text/javascript",
-			"gif" => "image/gif",
-			"weba" => "audio/webm",
-			"webm" => "video/webm",
-			"webp" => "image/webp",
-			"pdf" => "application/pdf",
-			"svg" => "image/svg+xml",
-			"png" => "image/png",
-		];
+
+		/**
+		 * Array of recognized static file mime types to serve
+		 */
+		public array $recognizedExtensions = [];
+
+		/**
+		 * Add a recognized file extension to be associated with a content type. Do not
+		 * start the extension with a period.
+		 */
+		public function addMimeType(string $extension, string $contentType): void{
+			$this->recognizedExtensions[$extension] = $contentType;
+		}
+
+		/**
+		 * Remove a recognized file extension by the extension name. Do not start the extension
+		 * with a period.
+		 */
+		public function removeMimeType(string $extension): void{
+			if (array_key_exists($extension, $this->recognizedExtensions)){
+				unset($this->recognizedExtensions[$extension]);
+			}
+		}
 	}

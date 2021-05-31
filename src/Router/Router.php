@@ -45,13 +45,31 @@
 			$cacheConfig = json_decode($cacheJson, true);
 
 			if ($cacheConfig === null){
-				throw new InvalidJSON("cache.json syntax is invalid.");
+				throw new InvalidJSON("nox-cache.json syntax is invalid.");
+			}
+
+			// Fetch the nox-mime.json for recognized static mime types to serve
+			$mimeJson = file_get_contents($fromDirectory . "/nox-mime.json");
+			$mimeTypesConfig = json_decode($mimeJson, true);
+
+			if ($mimeTypesConfig === null){
+				throw new InvalidJSON("nox-mime.json syntax is invalid.");
+			}
+
+			/**
+			 * Create the mime types instance to give to the static file handler
+			 */
+			$mimeTypes = new MimeTypes;
+
+			foreach($mimeTypesConfig as $extension=>$contentType){
+				$mimeTypes->addMimeType($extension, $contentType);
 			}
 
 			/**
 			 * Setup the static file serving
 			 */
 			$this->staticFileHandler = new StaticFileHandler;
+			$this->staticFileHandler->mimeTypes = $mimeTypes;
 			$this->staticFileHandler->setStaticFilesDirectory($fromDirectory . $noxConfig['static-directory']);
 			$this->staticFileHandler->setCacheConfig($cacheConfig);
 

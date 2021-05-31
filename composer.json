@@ -9,7 +9,6 @@
             "email": "nox7@animetavern.com"
         }
     ],
-    "minimum-stability": "stable",
     "require": {
         "php": ">=8.0"
     },

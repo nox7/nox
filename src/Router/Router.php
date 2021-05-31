@@ -246,7 +246,8 @@
 											$newRequestHandler = new RequestHandler(
 												$this,
 												$attributeResponse->newRequestPath,
-												$currentRequestHandler->requestType
+												$currentRequestHandler->requestType,
+												$currentRequestHandler->recursionDepth,
 											);
 											$newRequestHandler->processRequest();
 											exit();

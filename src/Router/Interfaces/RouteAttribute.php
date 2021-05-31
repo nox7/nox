@@ -1,6 +1,8 @@
 <?php
 	namespace Nox\Router\Interfaces;
 
+	use Nox\Router\AttributeResponse;
+
 	interface RouteAttribute{
-		public function getPassed(): bool;
+		public function getAttributeResponse(): AttributeResponse;
 	}

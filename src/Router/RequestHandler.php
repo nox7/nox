@@ -21,7 +21,9 @@
 			public string $requestType,
 			public int $recursionDepth = 0,
 		){
-			$this->requestPath = sprintf("/%s", $requestPath);
+			if (substr($requestPath, 0, 1) !== "/") {
+				$this->requestPath = sprintf("/%s", $requestPath);
+			}
 		}
 
 		/**
@@ -57,7 +59,7 @@
 				}
 			}
 
-			return $this->router->route($this->requestType, $this->requestPath);
+			return $this->router->route($this->requestType, $this->requestPath, $this);
 		}
 
 		/**

@@ -1,9 +1,12 @@
 <?php
 	namespace Nox\Router;
 
+	use Nox\Http\Request;
 	use Nox\ORM\Abyss;
 	use Nox\RenderEngine\Renderer;
+	use Nox\Router\Attributes\Route;
 	use Nox\Router\Exceptions\InvalidJSON;
+	use Nox\Router\Interfaces\RouteAttribute;
 
 	require_once __DIR__ . "/Attributes/Route.php";
 	require_once __DIR__ . "/Exceptions/InvalidJSON.php";
@@ -140,7 +143,8 @@
 		 */
 		public function route(
 			string $requestMethod,
-			string $uri
+			string $uri,
+			RequestHandler $currentRequestHandler,
 		): mixed{
 
 			// Go through all the methods collected from the controller classes
@@ -214,25 +218,55 @@
 					foreach ($routeMethodsToAttempt as $routableMethod){
 						$attributes = $routableMethod->getAttributes();
 
-						// Check everything except the route
+						// Keep track of which attributes are RouteAttribute instances
+						$neededToRoute = 0;
+
+						// Keep track of which RouteAttributes approve of this request
 						$passedAttributes = 0;
-						$neededToRoute = count($attributes) - 1;
 
 						foreach ($attributes as $attribute){
-							$attrName = $attribute->getName();
+							/** @var RouteAttribute $attrInstance */
+							$attrInstance = $attribute->newInstance();
+							if ($attrInstance instanceof RouteAttribute){
+								++$neededToRoute;
 
-							if ($attrName !== "Nox\\Router\\Attributes\\Route"){
-								$attrInstance = $attribute->newInstance();
-								if ($attrInstance->passed){
+								$attributeResponse = $attrInstance->getAttributeResponse();
+								if ($attributeResponse->isRouteUsable){
 									++$passedAttributes;
 								}else{
-									// This attribute failed. This method is not routable
-									// Move on to the next, break this inner for loop
-									break 1;
+									// This attribute says the route is not currently usable.
+
+									// However, a route can alter the current HTTP response
+									// Check if this AttributeResponse is doing so
+									if ($attributeResponse->responseCode !== null){
+										http_response_code($attributeResponse->responseCode);
+										if ($attributeResponse->newRequestPath !== null){
+											// There is a new request path
+											// Instantiate a new request handler now and handle it
+											$newRequestHandler = new RequestHandler(
+												$this,
+												$attributeResponse->newRequestPath,
+												$currentRequestHandler->requestType
+											);
+											$newRequestHandler->processRequest();
+											exit();
+										}else{
+											// A response code was set, but no new request path.
+											// Just return a blank string in this case.
+											return "";
+										}
+									}else{
+										// Break this current loop and move on to the next.
+										// The route isn't usable, but the attribute response
+										// did not change the request code or path
+										break 1;
+									}
 								}
 							}
 						}
 
+						// If the number of valid RouteAttribute attributes equals the number
+						// found on this route method, then invoke this route controller
 						if ($passedAttributes === $neededToRoute){
 							return $routableMethod->invoke($classInstance);
 						}

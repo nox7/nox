@@ -40,8 +40,8 @@
 				throw new InvalidJSON("nox.json syntax is invalid.");
 			}
 
-			// Fetch the cache.json for cache config
-			$cacheJson = file_get_contents($fromDirectory . sprintf("/%s", $noxConfig['cache-config']));
+			// Fetch the nox-cache.json for cache config
+			$cacheJson = file_get_contents($fromDirectory . "/nox-cache.json");
 			$cacheConfig = json_decode($cacheJson, true);
 
 			if ($cacheConfig === null){

@@ -1,5 +1,4 @@
 {
-  "cache-config": "nox-cache.json",
   "static-directory": "/static",
   "layouts-directory": "/layouts",
   "views-directory": "/views",

@@ -1,5 +1,5 @@
 <?php
-	require_once __DIR__ . "/../../src/autoload.php";
+	require_once __DIR__ . "/../../vendor/autoload.php";
 
 	// For this example, User class
 	require_once __DIR__ . "/../classes/User.php";

@@ -106,12 +106,12 @@ You can also force HTTP response codes or silent route request rewrites (such as
             $user = ?;
             if ($user->isLoggedIn()){
                 $this->attributeResponse->isRouteUsable = true;
+            }else{
+            	// Tell the router this route is not usable
+            	// and a 403 should be given
+                $this->attributeResponse->isRouteUsable = false;
+                $this->attributeResponse->responseCode = 403;
             }
-            
-            // Tell the router this route is not usable
-            // and a 403 should be given
-            $this->attributeResponse->isRouteUsable = false;
-            $this->attributeResponse->responseCode = 403;
         }
         
         public function getAttributeResponse(): AttributeResponse{

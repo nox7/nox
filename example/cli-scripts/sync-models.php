@@ -14,12 +14,3 @@
 
 	// Sync the models to the current local MySQL database
 	$abyss->syncModels();
-
-	// For this example, test User creation
-	$newUser = $abyss->instanceFromModel(User::getModel()); // Fetch blank User class
-	$newUser->save(); // This will insert it into the DB
-	var_dump($newUser->id); // Will be the new user ID
-
-	// Can modify and save it again
-	$newUser->name = "nox" . rand(1,100);
-	$newUser->save();

@@ -164,9 +164,71 @@
 						require_once $controllerPath;
 						$classReflector = new \ReflectionClass($className);
 						$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
-						$this->routableMethods[] = [new $className(), $controllerMethods];
+						try {
+							$baselessRequestPath = $this->getBaselessRouteForClass($classReflector);
+							$this->routableMethods[] = [
+								new $className(),
+								$controllerMethods,
+								$baselessRequestPath,
+							];
+						}catch(RouteBaseNoMatch $e){
+
+						}
 					}
 				}
+			}
+		}
+
+		/**
+		 * Checks if a class can be routed.
+		 * Currently only checks for the presence and validity RouteBase attribute.
+		 */
+		public function getBaselessRouteForClass(\ReflectionClass $classReflection): string{
+			$attributes = $classReflection->getAttributes();
+			$hasRouteBase = false;
+
+			foreach($attributes as $attributeReflection){
+				$attributeName = $attributeReflection->getName();
+				if ($attributeName === "Nox\\Router\\Attributes\\RouteBase"){
+					$hasRouteBase = true;
+					// Check if the route base matches the current request URI
+
+					/** @var RouteBase $routeBaseAttribute */
+					$routeBaseAttribute = $attributeReflection->newInstance();
+
+					// Is the route a regular expression?
+					if ($routeBaseAttribute->isRegex === false){
+						// No, it is a plain string match
+						if ($routeBaseAttribute->uri === $this->requestPath){
+							return substr($this->requestPath, strlen($routeBaseAttribute->uri));
+						}
+					}else{
+						// Yes, it needs to be matched against the URI
+						$didMatch = preg_match_all($routeBaseAttribute->uri, $this->requestPath, $matches);
+
+						if ($didMatch === 1){
+							// Add the matches to the requests GET array
+							foreach ($matches as $name=>$match){
+								if (is_string($name)){
+									if (isset($match[0])){
+										$_GET[$name] = $match[0];
+									}
+								}
+							}
+
+							$stringToCut = $matches[0][0];
+							return substr($this->requestPath, strlen($stringToCut));
+						}
+					}
+				}
+			}
+
+			// If the code got here, no match happened.
+			// The calling function should not use this result
+			if ($hasRouteBase){
+				throw new RouteBaseNoMatch;
+			}else{
+				return $this->requestPath;
 			}
 		}
 
@@ -175,7 +237,6 @@
 		 */
 		public function route(
 			string $requestMethod,
-			string $uri,
 			RequestHandler $currentRequestHandler,
 		): mixed{
 
@@ -183,6 +244,17 @@
 			foreach ($this->routableMethods as $methodData){
 				$classInstance = $methodData[0];
 				$methods = $methodData[1];
+
+				// The request path here will be modified if the class
+				// the Route attribute is in has a RouteBase.
+				// The base, at this point, is already checked and the $requestPath
+				// below will have the base chopped off
+				$requestPath = $methodData[2];
+
+				if (!str_starts_with($requestPath, "/")){
+					$requestPath = "/" . $requestPath;
+				}
+
 
 				// The router will first find all methods
 				// that have a matching route.
@@ -219,12 +291,12 @@
 								// Is the route a regular expression?
 								if ($routeAttribute->isRegex === false){
 									// No, it is a plain string match
-									if ($routeAttribute->uri === $uri){
+									if ($routeAttribute->uri === $requestPath){
 										$routeMethodsToAttempt[] = $method;
 									}
 								}else{
 									// Yes, it needs to be matched against the URI
-									$didMatch = preg_match_all($routeAttribute->uri, $uri, $matches);
+									$didMatch = preg_match_all($routeAttribute->uri, $requestPath, $matches);
 									if ($didMatch === 1){
 										// Add the matches to the requests GET array
 										foreach ($matches as $name=>$match){

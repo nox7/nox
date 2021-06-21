@@ -5,11 +5,15 @@
 	use Nox\ORM\Abyss;
 	use Nox\RenderEngine\Renderer;
 	use Nox\Router\Attributes\Route;
+	use Nox\Router\Attributes\RouteBase;
 	use Nox\Router\Exceptions\InvalidJSON;
+	use Nox\Router\Exceptions\RouteBaseNoMatch;
 	use Nox\Router\Interfaces\RouteAttribute;
 
 	require_once __DIR__ . "/Attributes/Route.php";
+	require_once __DIR__ . "/Attributes/RouteBase.php";
 	require_once __DIR__ . "/Exceptions/InvalidJSON.php";
+	require_once __DIR__ . "/Exceptions/RouteBaseNoMatch.php";
 
 	class Router{
 

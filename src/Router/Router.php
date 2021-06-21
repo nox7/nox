@@ -153,7 +153,9 @@
 				}
 
 				if (is_dir($controllerPath)){
-					$this->loadMVCControllers(sprintf("%s/%s", $innerDirectory, $controllerFileName));
+					$this->loadMVCControllers(
+						innerDirectory: sprintf("%s/%s", $innerDirectory, $controllerFileName),
+					);
 				}else{
 					// The class name _must_ be the file name minus the extension
 					$fileExtension = pathinfo($controllerFileName, PATHINFO_EXTENSION);

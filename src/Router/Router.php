@@ -46,7 +46,9 @@
 		 * Loads all necessary components for the router to function
 		 * from the provided directory
 		 */
-		public function loadAll(string $fromDirectory): void{
+		public function loadAll(
+			string $fromDirectory,
+		): void{
 			// Fetch the nox.json
 			$noxJson = file_get_contents($fromDirectory . "/nox.json");
 			$noxConfig = json_decode($noxJson, true);

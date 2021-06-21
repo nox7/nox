@@ -5,7 +5,10 @@
 	require_once __DIR__ . "/MimeTypes.php";
 
 	class StaticFileHandler{
-		public string $staticDirectory = "";
+		public ?string $staticDirectory = null;
+
+		/** @var array Keys are the uri alias and values are a key/value array. See addStaticFileDirectory */
+		public array $staticDirectories = [];
 		public string $cacheFile = "";
 		public array $cacheConfig = [];
 
@@ -15,8 +18,16 @@
 		 */
 		public ?MimeTypes $mimeTypes = null;
 
-		public function setStaticFilesDirectory(string $directoryPath): void{
-			$this->staticDirectory = $directoryPath;
+		/**
+		 * Sets a URI prepend alias for accessing a static file directory
+		 * @param string $directoryPath The path to the static files to be served
+		 * @param strign $uriAlias (Optional) The alias, if any, that a URI must start with to be a valid static file request.
+		 */
+		public function addStaticFileDirectory(
+			string $directoryPath,
+			string $uriAlias = ""
+		){
+			$this->staticDirectories[$uriAlias] = $directoryPath;
 		}
 
 		/**
@@ -24,8 +35,29 @@
 		* @param string $filePath
 		* @return string
 		*/
-		public function getFullStaticFilePath(string $filePath): string{
-			return sprintf("%s/%s", $this->staticDirectory, $filePath);
+		public function getFullStaticFilePath(string $filePath): ?string{
+			// Support for the single-static directory setting
+			if ($this->staticDirectory !== null) {
+				return sprintf("%s/%s", $this->staticDirectory, $filePath);
+			}else{
+				// Always process the global (blank) uriAlias last, if it exists
+				foreach($this->staticDirectories as $uriAlias=>$directoryPath){
+					if (!empty($uriAlias)) {
+						if (str_starts_with($filePath, $uriAlias)) {
+							// Replace the alias directory
+							$newPath = substr($filePath, strlen($uriAlias));
+							return sprintf("%s%s", $directoryPath, $newPath);
+						}
+					}
+				}
+
+				// Process the blank uriAlias last, here
+				if (array_key_exists("", $this->staticDirectories)){
+					return sprintf("%s/%s", $this->staticDirectories[""], $filePath);
+				}
+			}
+
+			return null;
 		}
 
 		/**
@@ -35,7 +67,11 @@
 		*/
 		public function doesStaticFileExist(string $filePath): bool{
 			$fullPath = $this->getFullStaticFilePath($filePath);
-			return file_exists($fullPath) && !is_dir($fullPath);
+			if ($fullPath) {
+				return file_exists($fullPath) && !is_dir($fullPath);
+			}else{
+				return false;
+			}
 		}
 
 		/**

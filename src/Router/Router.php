@@ -73,7 +73,22 @@
 			 */
 			$this->staticFileHandler = new StaticFileHandler;
 			$this->staticFileHandler->mimeTypes = $mimeTypes;
-			$this->staticFileHandler->setStaticFilesDirectory($fromDirectory . $noxConfig['static-directory']);
+
+			// Check for the single static directory definition
+			if (array_key_exists("static-directory", $noxConfig)) {
+				$this->staticFileHandler->addStaticFileDirectory(
+					$fromDirectory . $noxConfig['static-directory'],
+					"",
+				);
+			}else{
+				// Support multiple static directory definition via directory alias prepends
+				foreach($noxConfig['static-directories'] as $uriAlias=>$directoryPath) {
+					$this->staticFileHandler->addStaticFileDirectory(
+						$fromDirectory . $directoryPath,
+						$uriAlias,
+					);
+				}
+			}
 			$this->staticFileHandler->setCacheConfig($cacheConfig);
 
 			/**

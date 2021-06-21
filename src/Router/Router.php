@@ -22,6 +22,15 @@
 		/** @property \ReflectionMethod[] $routableMethods */
 		public array $routableMethods = [];
 
+		public function __construct(
+			public string $requestPath,
+			public string $requestMethod,
+		){
+			if (!str_starts_with($this->requestPath, "/")){
+				$this->requestPath = "/" . $this->requestPath;
+			}
+		}
+
 		/**
 		* Sets the controllers folder
 		*/

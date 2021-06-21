@@ -1,14 +1,22 @@
 <?php
 	require_once __DIR__ . "/../vendor/autoload.php";
 
+	$requestPath = $_GET['requestPath'];
+	$requestMethod = $_SERVER['REQUEST_METHOD'];
+
 	// Load the router
-	$router = new Nox\Router\Router;
-	$router->loadAll(__DIR__);
+	$router = new Nox\Router\Router(
+		requestPath:$requestPath,
+		requestMethod:$requestMethod,
+	);
+	$router->loadAll(
+		fromDirectory: __DIR__,
+	);
 
 	// Load the request handler
 	$requestHandler = new \Nox\Router\RequestHandler(
 		$router,
-		$_GET['requestPath'],
+		$requestPath,
 		$_SERVER['REQUEST_METHOD']
 	);
 

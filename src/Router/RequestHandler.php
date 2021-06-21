@@ -59,7 +59,7 @@
 				}
 			}
 
-			return $this->router->route($this->requestType, $this->requestPath, $this);
+			return $this->router->route($this->requestType, $this);
 		}
 
 		/**

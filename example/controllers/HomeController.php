@@ -5,19 +5,20 @@
 
 	require_once __DIR__ . "/../attributes/NeverUsable.php";
 
+	use Nox\RenderEngine\Renderer;
 	use Nox\Router\Attributes\Route;
 
 	class HomeController extends \Nox\Router\BaseController{
 
 		#[Route("GET", "/")]
 		public function homeView(): string{
-			return \Nox\RenderEngine\Renderer::renderView("home.html");
+			return Renderer::renderView("home.html");
 		}
 
 		#[Route("GET", "/always-404")]
 		#[NeverUsable()]
 		public function always404View(): string{
 			return "uh-oh";
-			//return \Nox\RenderEngine\Renderer::renderView("home.html");
+			// return Renderer::renderView("home.html");
 		}
 	}

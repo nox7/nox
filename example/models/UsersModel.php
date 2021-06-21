@@ -34,6 +34,7 @@
 					defaultValue: 0,
 					autoIncrement: true,
 					isPrimary: true,
+					isNull:false,
 				),
 				new ColumnDefinition(
 					name:"name",

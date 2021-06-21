@@ -19,7 +19,7 @@
 		private ViewSettings $viewSettings;
 		public StaticFileHandler $staticFileHandler;
 
-		/** @property ReflectionMethod[] $routableMethods */
+		/** @property \ReflectionMethod[] $routableMethods */
 		public array $routableMethods = [];
 
 		/**

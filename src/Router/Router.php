@@ -199,7 +199,7 @@
 					// Is the route a regular expression?
 					if ($routeBaseAttribute->isRegex === false){
 						// No, it is a plain string match
-						if ($routeBaseAttribute->uri === $this->requestPath){
+						if (str_starts_with($this->requestPath, $routeBaseAttribute->uri)){
 							return substr($this->requestPath, strlen($routeBaseAttribute->uri));
 						}
 					}else{

@@ -36,8 +36,8 @@
 		}
 
 		/**
-		* Sets the controllers folder
-		*/
+		 * Sets the controllers folder
+		 */
 		public function setControllersFolder(string $path): void{
 			$this->controllersFolder = $path;
 		}
@@ -133,9 +133,9 @@
 		}
 
 		/**
-		* Loads the MVC controller classes
-		* from the controllers folder
-		*/
+		 * Loads the MVC controller classes
+		 * from the controllers folder
+		 */
 		public function loadMVCControllers(
 			string $innerDirectory = ""
 		): void{
@@ -269,8 +269,8 @@
 					$attributes = $method->getAttributes();
 
 					/**
-					* To be defined eventually...
-					*/
+					 * To be defined eventually...
+					 */
 					$routeClass = null;
 					$routeMethod = null;
 					$attemptRouting = false;

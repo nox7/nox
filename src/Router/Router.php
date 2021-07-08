@@ -347,8 +347,18 @@
 										if ($attributeResponse->newRequestPath !== null){
 											// There is a new request path
 											// Instantiate a new request handler now and handle it
+											// A new router must also be created
+											$newRouter = new Router(
+												$attributeResponse->newRequestPath,
+												$this->requestMethod,
+											);
+											$newRouter->staticFileHandler = $this->staticFileHandler;
+											$newRouter->viewSettings = $this->viewSettings;
+											$newRouter->noxConfig = $this->noxConfig;
+											$newRouter->controllersFolder = $this->controllersFolder;
+											$newRouter->loadMVCControllers();
 											$newRequestHandler = new RequestHandler(
-												$this,
+												$newRouter,
 												$attributeResponse->newRequestPath,
 												$currentRequestHandler->requestType,
 												$currentRequestHandler->recursionDepth,

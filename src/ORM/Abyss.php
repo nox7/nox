@@ -134,6 +134,34 @@
 		}
 
 		/**
+		 * Prefills the properties of a model class with the column definition defaults for that class' model
+		 * @throws ObjectMissingModelProperty
+		 */
+		public function prefillPropertiesWithColumnDefaults(ModelInstance $modelClass): void{
+			$model = $modelClass::getModel();
+			$instanceReflection = new \ReflectionClass($modelClass);
+			$instanceProperties = $instanceReflection->getProperties();
+			$instancePropertyNames = [];
+			foreach($instanceProperties as $reflectionProperty){
+				$instancePropertyNames[] = $reflectionProperty->name;
+			}
+
+			/**
+			 * @var ColumnDefinition $sqlColumnDefinition
+			 */
+			foreach($model->getColumns() as $sqlColumnDefinition) {
+				$columnName = $sqlColumnDefinition->name;
+				$propertyNameInClass = $sqlColumnDefinition->classPropertyName;
+				// Check if a property exists for this column
+				if (in_array($propertyNameInClass, $instancePropertyNames)) {
+					$modelClass->{$propertyNameInClass} = $sqlColumnDefinition->defaultValue;
+				} else {
+					throw new ObjectMissingModelProperty("Missing property definition in class $className for column $columnName. Property name expected " . $sqlColumnDefinition->classPropertyName);
+				}
+			}
+		}
+
+		/**
 		 * Returns a class instances with data from the MySQL database.
 		 * Identified by a primary key.
 		 */

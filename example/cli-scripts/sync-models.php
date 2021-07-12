@@ -1,9 +1,6 @@
 <?php
 	require_once __DIR__ . "/../../vendor/autoload.php";
 
-	// For this example, User class
-	require_once __DIR__ . "/../classes/User.php";
-
 	use \Nox\ORM\Abyss;
 
 	// Setup Abyss from this directory.

@@ -54,7 +54,7 @@
 			/**
 			 * Check if the NoxEnv is loaded
 			 */
-			if (!class_exists("NocEnv")){
+			if (!class_exists("NoxEnv")){
 				require_once $fromDirectory . "/nox-env.php";
 			}
 

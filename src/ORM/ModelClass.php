@@ -34,12 +34,11 @@
 
 		/**
 		 * Deletes a singular class model instance
-		 * @param ModelInstance $modelClass
 		 * @throws Exception
 		 */
-		public function delete(ModelInstance $modelClass):void{
+		public function delete():void{
 			$abyss = new Abyss;
-			$abyss->deleteRowByPrimaryKey($modelClass);
+			$abyss->deleteRowByPrimaryKey($this);
 		}
 
 		public static function getModel(): MySQLModelInterface

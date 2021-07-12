@@ -2,11 +2,13 @@
 	namespace Nox\RenderEngine;
 
 	require_once __DIR__ . "/Exceptions/LayoutDoesNotExist.php";
+	require_once __DIR__ . "/Exceptions/ViewFileDoesNotExist.php";
 	require_once __DIR__ . "/Parser.php";
 	require_once __DIR__ . "/../Router/ViewSettings.php";
 
 	use Nox\RenderEngine\Exceptions\LayoutDoesNotExist;
 	use Nox\RenderEngine\Exceptions\ParseError;
+	use Nox\RenderEngine\Exceptions\ViewFileDoesNotExist;
 	use Nox\Router\ViewSettings;
 
 	class Renderer{
@@ -21,9 +23,15 @@
 		 * @return string
 		 * @throws LayoutDoesNotExist
 		 * @throws ParseError
+		 * @throws ViewFileDoesNotExist
 		 */
 		public static function renderView(string $viewFileName, array $viewScope = []): string{
 			$fileLocation = sprintf("%s/%s", self::$viewSettings->viewsFolder, $viewFileName);
+
+			if (!realpath($fileLocation)){
+				throw new ViewFileDoesNotExist(sprintf("No view file at file path: %s", $fileLocation));
+			}
+
 			$parser = new Parser($fileLocation, $viewScope);
 			$parser->parse();
 

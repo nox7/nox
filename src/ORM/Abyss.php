@@ -54,7 +54,7 @@
 			/**
 			 * Check if the NoxEnv is loaded
 			 */
-			if (!class_exists("NocEnv")){
+			if (!class_exists("NoxEnv")){
 				require_once $fromDirectory . "/nox-env.php";
 			}
 
@@ -66,28 +66,30 @@
 			// If not, then this is probably being CLI'd
 			// and needs to be loaded in
 
-			mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT); // Set MySQLi to throw exceptions
-			if (!isset(self::$mysqli)){
-				try{
-					self::$mysqli = new \mysqli(
-						\NoxEnv::MYSQL_HOST,
-						\NoxEnv::MYSQL_USERNAME,
-						\NoxEnv::MYSQL_PASSWORD,
-						\NoxEnv::MYSQL_DB_NAME,
-						\NoxEnv::MYSQL_PORT
-					);
-				}catch(\mysqli_sql_exception $e){
-					// Rethrow it
-					throw $e;
-				}
+			if (!isset(self::$mysqli)) {
+				mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT); // Set MySQLi to throw exceptions
+				if (!isset(self::$mysqli)) {
+					try {
+						self::$mysqli = new \mysqli(
+							\NoxEnv::MYSQL_HOST,
+							\NoxEnv::MYSQL_USERNAME,
+							\NoxEnv::MYSQL_PASSWORD,
+							\NoxEnv::MYSQL_DB_NAME,
+							\NoxEnv::MYSQL_PORT
+						);
+					} catch (\mysqli_sql_exception $e) {
+						// Rethrow it
+						throw $e;
+					}
 
-				self::$mysqli->query(
-					sprintf(
-						"SET NAMES %s COLLATE %s",
-						self::$characterEncoding,
-						self::$collation,
-					),
-				);
+					self::$mysqli->query(
+						sprintf(
+							"SET NAMES %s COLLATE %s",
+							self::$characterEncoding,
+							self::$collation,
+						),
+					);
+				}
 			}
 		}
 
@@ -129,6 +131,34 @@
 			}
 
 			return $instance;
+		}
+
+		/**
+		 * Prefills the properties of a model class with the column definition defaults for that class' model
+		 * @throws ObjectMissingModelProperty
+		 */
+		public function prefillPropertiesWithColumnDefaults(ModelInstance $modelClass): void{
+			$model = $modelClass::getModel();
+			$instanceReflection = new \ReflectionClass($modelClass);
+			$instanceProperties = $instanceReflection->getProperties();
+			$instancePropertyNames = [];
+			foreach($instanceProperties as $reflectionProperty){
+				$instancePropertyNames[] = $reflectionProperty->name;
+			}
+
+			/**
+			 * @var ColumnDefinition $sqlColumnDefinition
+			 */
+			foreach($model->getColumns() as $sqlColumnDefinition) {
+				$columnName = $sqlColumnDefinition->name;
+				$propertyNameInClass = $sqlColumnDefinition->classPropertyName;
+				// Check if a property exists for this column
+				if (in_array($propertyNameInClass, $instancePropertyNames)) {
+					$modelClass->{$propertyNameInClass} = $sqlColumnDefinition->defaultValue;
+				} else {
+					throw new ObjectMissingModelProperty("Missing property definition in class $className for column $columnName. Property name expected " . $sqlColumnDefinition->classPropertyName);
+				}
+			}
 		}
 
 		/**
@@ -421,7 +451,7 @@
 		/**
 		 * Fetches the primary key from a model, if any
 		 */
-		private function getPrimaryKey(MySQLModelInterface $model): ?string{
+		public function getPrimaryKey(MySQLModelInterface $model): ?string{
 			/** @var\NoxMySQL\ColumnDefinition $columnDefinition */
 			foreach($model->getColumns() as $columnDefinition){
 				if ($columnDefinition->isPrimary){

@@ -1,9 +1,12 @@
 <?php
 
-	use Nox\ORM\Abyss;
+	require_once __DIR__ . "/../models/UsersModel.php";
+
+	use Nox\ORM\Interfaces\ModelInstance;
+	use Nox\ORM\ModelClass;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
 
-	class User implements \Nox\ORM\Interfaces\ModelInstance
+	class User extends ModelClass implements ModelInstance
 	{
 		public ?int $id = null;
 		public string $name;
@@ -14,16 +17,7 @@
 			return new UsersModel();
 		}
 
-		public function save(): void{
-			$abyss = new Abyss;
-			$rowID = $abyss->saveOrCreate($this);
-			if ($rowID !== null){
-				$this->id = $rowID;
-			}
-		}
-
-		public function delete(): void{
-			$abyss = new Abyss;
-			$abyss->deleteRowByPrimaryKey($this);
+		public function __construct(){
+			parent::__construct($this);
 		}
 	}

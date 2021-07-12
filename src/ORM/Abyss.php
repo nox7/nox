@@ -66,28 +66,30 @@
 			// If not, then this is probably being CLI'd
 			// and needs to be loaded in
 
-			mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT); // Set MySQLi to throw exceptions
-			if (!isset(self::$mysqli)){
-				try{
-					self::$mysqli = new \mysqli(
-						\NoxEnv::MYSQL_HOST,
-						\NoxEnv::MYSQL_USERNAME,
-						\NoxEnv::MYSQL_PASSWORD,
-						\NoxEnv::MYSQL_DB_NAME,
-						\NoxEnv::MYSQL_PORT
-					);
-				}catch(\mysqli_sql_exception $e){
-					// Rethrow it
-					throw $e;
-				}
+			if (!isset(self::$mysqli)) {
+				mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT); // Set MySQLi to throw exceptions
+				if (!isset(self::$mysqli)) {
+					try {
+						self::$mysqli = new \mysqli(
+							\NoxEnv::MYSQL_HOST,
+							\NoxEnv::MYSQL_USERNAME,
+							\NoxEnv::MYSQL_PASSWORD,
+							\NoxEnv::MYSQL_DB_NAME,
+							\NoxEnv::MYSQL_PORT
+						);
+					} catch (\mysqli_sql_exception $e) {
+						// Rethrow it
+						throw $e;
+					}
 
-				self::$mysqli->query(
-					sprintf(
-						"SET NAMES %s COLLATE %s",
-						self::$characterEncoding,
-						self::$collation,
-					),
-				);
+					self::$mysqli->query(
+						sprintf(
+							"SET NAMES %s COLLATE %s",
+							self::$characterEncoding,
+							self::$collation,
+						),
+					);
+				}
 			}
 		}
 

@@ -17,10 +17,10 @@
 
 	class Router{
 
-		private string $controllersFolder = "";
+		public string $controllersFolder = "";
 		private array $controllers = [];
 		public ?array $noxConfig = null;
-		private ViewSettings $viewSettings;
+		public ViewSettings $viewSettings;
 		public StaticFileHandler $staticFileHandler;
 
 		/** @property \ReflectionMethod[] $routableMethods */

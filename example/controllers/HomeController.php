@@ -15,6 +15,11 @@
 			return Renderer::renderView("home.html");
 		}
 
+		#[Route("GET", "/404")]
+		public function error404View(): string{
+			return Renderer::renderView("errors/404.html");
+		}
+
 		#[Route("GET", "/always-404")]
 		#[NeverUsable()]
 		public function always404View(): string{

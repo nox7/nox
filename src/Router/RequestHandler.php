@@ -80,8 +80,18 @@
 				if ($this->recursionDepth < self::MAX_RECURSION_DEPTH) {
 					http_response_code(404);
 					if ($this->requestPath !== $this->router->noxConfig['404-route']) {
-						$notFoundRequestHandler = new RequestHandler($this->router, "404", "GET", ++$this->recursionDepth);
+						$notFoundRouter = new Router(
+							requestPath:"/404",
+							requestMethod: "GET"
+						);
+						$notFoundRouter->staticFileHandler = $this->router->staticFileHandler;
+						$notFoundRouter->viewSettings = $this->router->viewSettings;
+						$notFoundRouter->noxConfig = $this->router->noxConfig;
+						$notFoundRouter->controllersFolder = $this->router->controllersFolder;
+						$notFoundRouter->loadMVCControllers();
+						$notFoundRequestHandler = new RequestHandler($notFoundRouter, "404", "GET", ++$this->recursionDepth);
 						$notFoundRequestHandler->processRequest();
+						exit();
 					} else {
 						// The current request path IS the 404-route
 						// That means the 404 404'd

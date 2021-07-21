@@ -373,7 +373,7 @@
 									}else{
 										// Break this current loop and move on to the next.
 										// The route isn't usable, but the attribute response
-										// did not change the request code or path
+										// did not change the HTTP response code or rewrite the route path
 										break 1;
 									}
 								}

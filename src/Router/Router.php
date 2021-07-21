@@ -31,6 +31,10 @@
 			public string $requestPath,
 			public string $requestMethod,
 		){
+			// Force the requestPath and requestMethod to be lowercase
+			$this->requestPath = strtolower($this->requestPath);
+			$this->requestMethod = strtolower($this->requestMethod);
+
 			if (!str_starts_with($this->requestPath, "/")){
 				$this->requestPath = "/" . $this->requestPath;
 			}

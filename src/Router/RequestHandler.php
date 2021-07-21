@@ -17,14 +17,8 @@
 
 		public function __construct(
 			public Router $router,
-			public string $requestPath,
-			public string $requestType,
 			public int $recursionDepth = 0,
-		){
-			if (substr($requestPath, 0, 1) !== "/") {
-				$this->requestPath = sprintf("/%s", $requestPath);
-			}
-		}
+		){}
 
 		/**
 		 * Process an HTTP request

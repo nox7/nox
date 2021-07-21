@@ -27,6 +27,9 @@
 		/** @property \ReflectionMethod[] $routableMethods */
 		public array $routableMethods = [];
 
+		/** @property DynamicRoute[] $dynamicRoutes */
+		private array $dynamicRoutes = [];
+
 		public function __construct(
 			public string $requestPath,
 			public string $requestMethod,
@@ -38,6 +41,13 @@
 			if (!str_starts_with($this->requestPath, "/")){
 				$this->requestPath = "/" . $this->requestPath;
 			}
+		}
+
+		/**
+		 * Registers a dynamic route. All dynamic routes are attempted after the attribute MVC routes.
+		 */
+		public function addDynamicRoute(DynamicRoute $dynamicRoute): void{
+			$this->dynamicRoutes[] = $dynamicRoute;
 		}
 
 		/**
@@ -544,8 +554,87 @@
 						}
 					}
 				}
-
 			}
+
+			// If nothing was returned at this point, now check all of the dynamic routes
+			// that are manually added
+			/** @var DynamicRoute $dynamicRoute */
+			foreach($this->dynamicRoutes as $dynamicRoute){
+				// Check if this route can be processed
+
+				if ($dynamicRoute->requestMethod === $this->requestMethod) {
+					if ($dynamicRoute->onRouteCheck !== null) {
+						/** @var DynamicRouteResponse $dynamicRouteResponse */
+						$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call();
+						if ($dynamicRouteResponse->isRouteUsable) {
+							// All good
+						} else {
+							if ($dynamicRouteResponse->responseCode !== null || $dynamicRouteResponse->newRequestPath !== null) {
+								if ($dynamicRouteResponse->responseCode !== null) {
+									http_response_code($dynamicRouteResponse->responseCode);
+									if ($dynamicRouteResponse->newRequestPath !== null) {
+										// There is a new request path
+										// Instantiate a new request handler now and handle it
+										// A new router must also be created
+										$newRouter = new Router(
+											$dynamicRouteResponse->newRequestPath,
+											$this->requestMethod,
+										);
+										$newRouter->staticFileHandler = $this->staticFileHandler;
+										$newRouter->viewSettings = $this->viewSettings;
+										$newRouter->noxConfig = $this->noxConfig;
+										$newRouter->controllersFolder = $this->controllersFolder;
+										$newRouter->loadMVCControllers();
+										$newRequestHandler = new RequestHandler($newRouter);
+										$newRequestHandler->processRequest();
+										exit();
+									}
+								}
+							}
+						}
+					}
+
+					// If we're here, then this route can be checked against the current URI
+					if ($dynamicRoute->isRegex === false) {
+						if ($this->requestPath === $dynamicRoute->requestPath) {
+							$renderReturn = $dynamicRoute->onRender->call(new BaseController);
+							if ($renderReturn === null){
+								throw new RouteMethodMustHaveANonNullReturn(
+									sprintf(
+										"A dynamic route was matched and called for the route %s, but the dynamic route's onRender callback returned null. All dynamic route callbacks must return a non-null value.",
+										$this->requestPath,
+									)
+								);
+							}
+							return $renderReturn;
+						}
+					}else{
+						// Regex checks
+						$didMatch = preg_match_all($dynamicRoute->requestPath, $this->requestPath, $matches);
+						if ($didMatch === 1){
+							// Add the matches to the requests GET array
+							foreach ($matches as $name=>$match){
+								if (is_string($name)){
+									if (isset($match[0])){
+										$_GET[$name] = $match[0];
+									}
+								}
+							}
+							$renderReturn = $dynamicRoute->onRender->call(new BaseController);
+							if ($renderReturn === null){
+								throw new RouteMethodMustHaveANonNullReturn(
+									sprintf(
+										"A dynamic route was matched and called for the route %s, but the dynamic route's onRender callback returned null. All dynamic route callbacks must return a non-null value.",
+										$this->requestPath,
+									)
+								);
+							}
+							return $renderReturn;
+						}
+					}
+				}
+			}
+
 			return null;
 		}
 	}

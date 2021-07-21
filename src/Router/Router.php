@@ -283,11 +283,6 @@
 				// below will have the base chopped off
 				$requestPath = $methodData[2];
 
-				if (!str_starts_with($requestPath, "/")){
-					$requestPath = "/" . $requestPath;
-				}
-
-
 				// The router will first find all methods
 				// that have a matching route.
 				// Then, later, it will verify any additional attributes

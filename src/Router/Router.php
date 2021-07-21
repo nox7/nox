@@ -565,31 +565,34 @@
 				if ($dynamicRoute->requestMethod === $this->requestMethod) {
 					if ($dynamicRoute->onRouteCheck !== null) {
 						/** @var DynamicRouteResponse $dynamicRouteResponse */
-						$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call();
-						if ($dynamicRouteResponse->isRouteUsable) {
+						$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call(new BaseController);
+						if ($dynamicRouteResponse->isRouteUsable === true) {
 							// All good
 						} else {
 							if ($dynamicRouteResponse->responseCode !== null || $dynamicRouteResponse->newRequestPath !== null) {
 								if ($dynamicRouteResponse->responseCode !== null) {
 									http_response_code($dynamicRouteResponse->responseCode);
-									if ($dynamicRouteResponse->newRequestPath !== null) {
-										// There is a new request path
-										// Instantiate a new request handler now and handle it
-										// A new router must also be created
-										$newRouter = new Router(
-											$dynamicRouteResponse->newRequestPath,
-											$this->requestMethod,
-										);
-										$newRouter->staticFileHandler = $this->staticFileHandler;
-										$newRouter->viewSettings = $this->viewSettings;
-										$newRouter->noxConfig = $this->noxConfig;
-										$newRouter->controllersFolder = $this->controllersFolder;
-										$newRouter->loadMVCControllers();
-										$newRequestHandler = new RequestHandler($newRouter);
-										$newRequestHandler->processRequest();
-										exit();
-									}
 								}
+								if ($dynamicRouteResponse->newRequestPath !== null) {
+									// There is a new request path
+									// Instantiate a new request handler now and handle it
+									// A new router must also be created
+									$newRouter = new Router(
+										$dynamicRouteResponse->newRequestPath,
+										$this->requestMethod,
+									);
+									$newRouter->staticFileHandler = $this->staticFileHandler;
+									$newRouter->viewSettings = $this->viewSettings;
+									$newRouter->noxConfig = $this->noxConfig;
+									$newRouter->controllersFolder = $this->controllersFolder;
+									$newRouter->loadMVCControllers();
+									$newRequestHandler = new RequestHandler($newRouter);
+									$newRequestHandler->processRequest();
+									exit();
+								}
+							}else{
+								// Just skip this route
+								continue;
 							}
 						}
 					}

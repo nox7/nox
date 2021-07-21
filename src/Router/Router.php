@@ -397,7 +397,7 @@
 										$routableMethod->name,
 									)
 								);
-							}else {
+							}else{
 								return $routeReturn;
 							}
 						}

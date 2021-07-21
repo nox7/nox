@@ -8,6 +8,7 @@
 	use Nox\Router\Attributes\RouteBase;
 	use Nox\Router\Exceptions\InvalidJSON;
 	use Nox\Router\Exceptions\RouteBaseNoMatch;
+	use Nox\Router\Exceptions\RouteMethodMustHaveANonNullReturn;
 	use Nox\Router\Interfaces\RouteAttribute;
 
 	require_once __DIR__ . "/Attributes/Route.php";

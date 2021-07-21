@@ -28,7 +28,7 @@
 			$requestMethod = $this->router->requestMethod;
 			$requestPath = $this->router->requestPath;
 
-			if ($requestMethod === "GET"){
+			if ($requestMethod === "get"){
 
 				// Check for a static file
 				if ($this->router->staticFileHandler->doesStaticFileExist($requestPath)){

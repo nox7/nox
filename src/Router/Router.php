@@ -357,12 +357,7 @@
 											$newRouter->noxConfig = $this->noxConfig;
 											$newRouter->controllersFolder = $this->controllersFolder;
 											$newRouter->loadMVCControllers();
-											$newRequestHandler = new RequestHandler(
-												$newRouter,
-												$attributeResponse->newRequestPath,
-												$currentRequestHandler->requestType,
-												$currentRequestHandler->recursionDepth,
-											);
+											$newRequestHandler = new RequestHandler($newRouter);
 											$newRequestHandler->processRequest();
 											exit();
 										}else{

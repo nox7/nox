@@ -24,20 +24,18 @@
 		 * Process an HTTP request
 		 */
 		public function getRouteResult(): mixed{
-			// $clientIP = $_SERVER['REMOTE_ADDR'];
+			// These values are already force-lowered in case sensitivity
+			$requestMethod = $this->router->requestMethod;
+			$requestPath = $this->router->requestPath;
 
-			if ($this->requestType === "GET"){
+			if ($requestMethod === "GET"){
 
 				// Check for a static file
-				if ($this->router->staticFileHandler->doesStaticFileExist($this->requestPath)){
-					$mimeType = $this->router->staticFileHandler->getStaticFileMime($this->requestPath);
+				if ($this->router->staticFileHandler->doesStaticFileExist($requestPath)){
+					$mimeType = $this->router->staticFileHandler->getStaticFileMime($requestPath);
 
 					// Do not serve unknown mime types
 					if ($mimeType !== null) {
-						/*if ($mimeType === null){
-							$mimeType = "text/plain";
-						}*/
-
 						/**
 						 * Set the cache-control header if there is a cache config for
 						 * the given mime type
@@ -48,12 +46,12 @@
 						}
 
 						header("content-type: $mimeType");
-						return $this->router->staticFileHandler->getStaticFileContents($this->requestPath);
+						return $this->router->staticFileHandler->getStaticFileContents($requestPath);
 					}
 				}
 			}
 
-			return $this->router->route($this->requestType, $this);
+			return $this->router->route($this);
 		}
 
 		/**
@@ -68,32 +66,41 @@
 				);
 				exit();
 			}elseif ($routeResult !== null){
+				// Successful route with an outputtable result.
+				// This is the result of the route (page, response, etc)
+				// Output it and be done with things
 				print($routeResult);
+				exit();
 			}else{
 				// TODO Allow an attribute to set the response code and route to use
 				if ($this->recursionDepth < self::MAX_RECURSION_DEPTH) {
 					http_response_code(404);
-					if ($this->requestPath !== $this->router->noxConfig['404-route']) {
+					if ($this->router->requestPath !== $this->router->noxConfig['404-route']) {
 						$notFoundRouter = new Router(
 							requestPath:"/404",
-							requestMethod: "GET"
+							requestMethod: "get",
 						);
 						$notFoundRouter->staticFileHandler = $this->router->staticFileHandler;
 						$notFoundRouter->viewSettings = $this->router->viewSettings;
 						$notFoundRouter->noxConfig = $this->router->noxConfig;
 						$notFoundRouter->controllersFolder = $this->router->controllersFolder;
 						$notFoundRouter->loadMVCControllers();
-						$notFoundRequestHandler = new RequestHandler($notFoundRouter, "404", "GET", ++$this->recursionDepth);
+						$notFoundRequestHandler = new RequestHandler(
+							$notFoundRouter,
+							++$this->recursionDepth,
+						);
 						$notFoundRequestHandler->processRequest();
-						exit();
-					} else {
-						// The current request path IS the 404-route
-						// That means the 404 404'd
-						exit();
 					}
+
+					exit();
 				}else{
 					// Too much recursion
-					throw new RecursionDepthExceeded("Too many recursive requests. Last request processed was " . $this->requestPath);
+					throw new RecursionDepthExceeded(
+						sprintf(
+							"Too many recursive requests. Last request processed was %s",
+							$this->router->requestPath,
+						),
+					);
 				}
 			}
 		}

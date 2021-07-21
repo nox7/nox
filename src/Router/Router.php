@@ -387,6 +387,28 @@
 				}
 			}
 
+			// Now check all the dynamic route methods
+			/** @var DynamicRoute $dynamicRoute */
+			foreach($this->dynamicRoutes as $dynamicRoute){
+				// Check the onRenderCheck callback
+				if ($dynamicRoute->onRouteCheck !== null) {
+					/** @var DynamicRouteResponse $dynamicRouteResponse */
+					$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call(new BaseController);
+					if (!$dynamicRouteResponse->isRouteUsable) {
+						// Skip this dynamic route
+						continue;
+					}
+				}
+
+				if ($dynamicRoute->isRegex){
+					if ($includeRegexRoutes){
+						$availableURIs[] = $dynamicRoute->requestPath;
+					}
+				}else{
+					$availableURIs[] = $dynamicRoute->requestPath;
+				}
+			}
+
 			return $availableURIs;
 		}
 

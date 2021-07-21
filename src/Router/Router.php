@@ -145,9 +145,23 @@
 			string $innerDirectory = ""
 		): void{
 			if ($innerDirectory === ""){
-				$fileNames = array_diff(scandir($this->controllersFolder), ['.','..']);
+				$fileNames = array_diff(
+					scandir(
+						$this->controllersFolder
+					),
+					['.','..'],
+				);
 			}else{
-				$fileNames = array_diff(scandir(sprintf("%s/%s", $this->controllersFolder, $innerDirectory)), ['.','..']);
+				$fileNames = array_diff(
+					scandir(
+						sprintf(
+							"%s/%s",
+							$this->controllersFolder,
+							$innerDirectory
+						)
+					),
+					['.','..'],
+				);
 			}
 
 			foreach ($fileNames as $controllerFileName){
@@ -187,6 +201,7 @@
 		/**
 		 * Checks if a class can be routed.
 		 * Currently only checks for the presence and validity RouteBase attribute.
+		 * @throws RouteBaseNoMatch
 		 */
 		public function getBaselessRouteForClass(\ReflectionClass $classReflection): string{
 			$attributes = $classReflection->getAttributes();

@@ -319,6 +319,8 @@
 					// The first one to pass all should be invoked as the correct
 					// route.
 					$acceptedRoutes = [];
+
+					/** @var \ReflectionMethod $routableMethod */
 					foreach ($routeMethodsToAttempt as $routableMethod){
 						$attributes = $routableMethod->getAttributes();
 

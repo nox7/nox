@@ -236,9 +236,9 @@
 		 * Routes a request to a controller
 		 */
 		public function route(
-			string $requestMethod,
 			RequestHandler $currentRequestHandler,
 		): mixed{
+			$requestMethod = $this->requestMethod;
 
 			// Go through all the methods collected from the controller classes
 			foreach ($this->routableMethods as $methodData){

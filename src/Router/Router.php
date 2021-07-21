@@ -167,9 +167,18 @@
 
 			foreach ($fileNames as $controllerFileName){
 				if ($innerDirectory === ""){
-					$controllerPath = sprintf("%s/%s", $this->controllersFolder, $controllerFileName);
+					$controllerPath = sprintf(
+						"%s/%s",
+						$this->controllersFolder,
+						$controllerFileName,
+					);
 				}else{
-					$controllerPath = sprintf("%s/%s/%s", $this->controllersFolder, $innerDirectory, $controllerFileName);
+					$controllerPath = sprintf(
+						"%s/%s/%s",
+						$this->controllersFolder,
+						$innerDirectory,
+						$controllerFileName,
+					);
 				}
 
 				if (is_dir($controllerPath)){

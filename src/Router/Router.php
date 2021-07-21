@@ -140,6 +140,7 @@
 		/**
 		 * Loads the MVC controller classes
 		 * from the controllers folder
+		 * @throws \ReflectionException
 		 */
 		public function loadMVCControllers(
 			string $innerDirectory = ""

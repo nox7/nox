@@ -21,6 +21,7 @@
 
 	// Load the request handler
 	$requestHandler = new \Nox\Router\RequestHandler($router);
+	\Nox\Router\BaseController::$requestHandler = $requestHandler;
 
 	// Process the request
 	$requestHandler->processRequest();

@@ -434,6 +434,14 @@
 				// below will have the base chopped off
 				$requestPath = $methodData[2];
 
+				// Because when a base is chopped off, it is possible
+				// for the $requestPath to be "" even though
+				// the router constructor checks for this.
+				// Fix it here
+				if (empty($requestPath)){
+					$requestPath = "/";
+				}
+
 				// The router will first find all methods
 				// that have a matching route.
 				// Then, later, it will verify any additional attributes

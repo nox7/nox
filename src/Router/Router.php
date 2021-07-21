@@ -239,6 +239,8 @@
 
 		/**
 		 * Routes a request to a controller
+		 * @throws RouteMethodMustHaveANonNullReturn
+		 * @throws \ReflectionException
 		 */
 		public function route(
 			RequestHandler $currentRequestHandler,

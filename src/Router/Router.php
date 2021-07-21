@@ -8,6 +8,7 @@
 	use Nox\Router\Attributes\RouteBase;
 	use Nox\Router\Exceptions\InvalidJSON;
 	use Nox\Router\Exceptions\RouteBaseNoMatch;
+	use Nox\Router\Exceptions\RouteMethodMustHaveANonNullReturn;
 	use Nox\Router\Interfaces\RouteAttribute;
 
 	require_once __DIR__ . "/Attributes/Route.php";
@@ -26,13 +27,27 @@
 		/** @property \ReflectionMethod[] $routableMethods */
 		public array $routableMethods = [];
 
+		/** @property DynamicRoute[] $dynamicRoutes */
+		private array $dynamicRoutes = [];
+
 		public function __construct(
 			public string $requestPath,
 			public string $requestMethod,
 		){
+			// Force the requestPath and requestMethod to be lowercase
+			$this->requestPath = strtolower($this->requestPath);
+			$this->requestMethod = strtolower($this->requestMethod);
+
 			if (!str_starts_with($this->requestPath, "/")){
 				$this->requestPath = "/" . $this->requestPath;
 			}
+		}
+
+		/**
+		 * Registers a dynamic route. All dynamic routes are attempted after the attribute MVC routes.
+		 */
+		public function addDynamicRoute(DynamicRoute $dynamicRoute): void{
+			$this->dynamicRoutes[] = $dynamicRoute;
 		}
 
 		/**
@@ -135,21 +150,45 @@
 		/**
 		 * Loads the MVC controller classes
 		 * from the controllers folder
+		 * @throws \ReflectionException
 		 */
 		public function loadMVCControllers(
 			string $innerDirectory = ""
 		): void{
 			if ($innerDirectory === ""){
-				$fileNames = array_diff(scandir($this->controllersFolder), ['.','..']);
+				$fileNames = array_diff(
+					scandir(
+						$this->controllersFolder
+					),
+					['.','..'],
+				);
 			}else{
-				$fileNames = array_diff(scandir(sprintf("%s/%s", $this->controllersFolder, $innerDirectory)), ['.','..']);
+				$fileNames = array_diff(
+					scandir(
+						sprintf(
+							"%s/%s",
+							$this->controllersFolder,
+							$innerDirectory
+						)
+					),
+					['.','..'],
+				);
 			}
 
 			foreach ($fileNames as $controllerFileName){
 				if ($innerDirectory === ""){
-					$controllerPath = sprintf("%s/%s", $this->controllersFolder, $controllerFileName);
+					$controllerPath = sprintf(
+						"%s/%s",
+						$this->controllersFolder,
+						$controllerFileName,
+					);
 				}else{
-					$controllerPath = sprintf("%s/%s/%s", $this->controllersFolder, $innerDirectory, $controllerFileName);
+					$controllerPath = sprintf(
+						"%s/%s/%s",
+						$this->controllersFolder,
+						$innerDirectory,
+						$controllerFileName,
+					);
 				}
 
 				if (is_dir($controllerPath)){
@@ -159,29 +198,47 @@
 				}else{
 					// The class name _must_ be the file name minus the extension
 					$fileExtension = pathinfo($controllerFileName, PATHINFO_EXTENSION);
-					if ($fileExtension === "php"){
+					if ($fileExtension === "php") {
 						$className = pathinfo($controllerFileName, PATHINFO_FILENAME);
 						require_once $controllerPath;
 						$classReflector = new \ReflectionClass($className);
 						$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
-						try {
-							$baselessRequestPath = $this->getBaselessRouteForClass($classReflector);
-							$this->routableMethods[] = [
-								new $className(),
-								$controllerMethods,
-								$baselessRequestPath,
-							];
-						}catch(RouteBaseNoMatch $e){
-
-						}
+						$this->routableMethods[] = [
+							new $className(),
+							$controllerMethods,
+							$this->requestPath,
+						];
 					}
 				}
 			}
 		}
 
 		/**
+		 * Will filter out the methods that do not have the right base
+		 */
+		private function filterOutRoutesWithNonMatchingBase(array $routableMethods): array{
+			$filteredRoutableMethods = [];
+			foreach($this->routableMethods as $methodData){
+				$classInstance = $methodData[0];
+				try {
+					$baselessRequestPath = $this->getBaselessRouteForClass(new \ReflectionClass($classInstance));
+					$filteredRoutableMethods[] = [
+						$classInstance,
+						$methodData[1],
+						$baselessRequestPath,
+					];
+				}catch(RouteBaseNoMatch $e){
+					continue;
+				}
+			}
+
+			return $filteredRoutableMethods;
+		}
+
+		/**
 		 * Checks if a class can be routed.
 		 * Currently only checks for the presence and validity RouteBase attribute.
+		 * @throws RouteBaseNoMatch
 		 */
 		public function getBaselessRouteForClass(\ReflectionClass $classReflection): string{
 			$attributes = $classReflection->getAttributes();
@@ -233,15 +290,141 @@
 		}
 
 		/**
+		 * Attempts to fetch the base route from a class, if it has one. If the class
+		 * has no RouteBase, then null is returned
+		 */
+		public function getRouteBaseFromClass(\ReflectionClass $reflectionClass): ?object{
+			$attributes = $reflectionClass->getAttributes();
+
+			/** @var \ReflectionAttribute $attribute */
+			foreach($attributes as $attribute){
+				if ($attribute->getName() === "Nox\\Router\\Attributes\\RouteBase"){
+					/** @var RouteBase $attrInstance */
+					return $attribute->newInstance();
+				}
+			}
+
+			return null;
+		}
+
+		/**
+		 * Fetches all accessible routable URIs.
+		 * An accessible route is determined by the calling HTTP session.
+		 * For example, a user logged in will see different available routes
+		 * returned here than a user that is not logged in (should that route method
+		 * implement an attribute that denies unauthenticated session).
+		 */
+		public function getAllAccessibleRouteURIs(
+			bool $includeRegexRoutes = false,
+		): array{
+			$availableURIs = [];
+
+			/** @var array $methodData */
+			foreach ($this->routableMethods as $methodData){
+				$classInstance = $methodData[0];
+				$classReflection = new \ReflectionClass($classInstance);
+
+				// Get the route base, if there is one
+				/** @var RouteBase $routeBase */
+				$routeBase = $this->getRouteBaseFromClass($classReflection);
+				$baseUri = "";
+				if ($routeBase){
+					if ($routeBase->isRegex === false){
+						$baseUri = $routeBase->uri;
+					}else{
+						if ($routeBase->isRegex && $includeRegexRoutes){
+							$baseUri = $routeBase->uri;
+						}else{
+							continue;
+						}
+					}
+				}
+
+				/** @var \ReflectionMethod[] $methods */
+				$methods = $methodData[1];
+
+				/** @var \ReflectionMethod $method */
+				foreach($methods as $method){
+					// Get the attributes (if any) of the method
+					$attributes = $method->getAttributes();
+
+					// Variables to keep track of route-affecting attributes
+					// and if they allow the route to pass.
+					$numMethodsToBeApproved = 0;
+					$numMethodsApproved = 0;
+					$thisMethodURI = null;
+					foreach($attributes as $attribute){
+						$routeAttribute = $attribute->newInstance();
+						if ($attribute->getName() === "Nox\\Router\\Attributes\\Route"){
+							/** @var Route $routeAttribute */
+							if ($routeAttribute->isRegex === true && $includeRegexRoutes) {
+								$thisMethodURI = $baseUri . $routeAttribute->uri;
+							}elseif ($routeAttribute->isRegex === false){
+								$thisMethodURI = $baseUri . $routeAttribute->uri;
+							}else{
+								// Skip this method
+								// It's a regex route but includeRegexRoutes is false
+								continue;
+							}
+						}else{
+							if ($routeAttribute instanceof RouteAttribute){
+								++$numMethodsToBeApproved;
+								if ($routeAttribute->getAttributeResponse()->isRouteUsable){
+									++$numMethodsApproved;
+								}
+							}
+						}
+					}
+
+					// Did this route's other methods match to the needed amount to be approved
+					// As in, is this route usable/accessible by the current HTTP session that
+					// calls this function in the first place?
+					if ($numMethodsToBeApproved === $numMethodsApproved){
+						if ($thisMethodURI !== null) {
+							$availableURIs[] = $thisMethodURI;
+						}
+					}
+				}
+			}
+
+			// Now check all the dynamic route methods
+			/** @var DynamicRoute $dynamicRoute */
+			foreach($this->dynamicRoutes as $dynamicRoute){
+				// Check the onRenderCheck callback
+				if ($dynamicRoute->onRouteCheck !== null) {
+					/** @var DynamicRouteResponse $dynamicRouteResponse */
+					$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call(new BaseController);
+					if (!$dynamicRouteResponse->isRouteUsable) {
+						// Skip this dynamic route
+						continue;
+					}
+				}
+
+				if ($dynamicRoute->isRegex){
+					if ($includeRegexRoutes){
+						$availableURIs[] = $dynamicRoute->requestPath;
+					}
+				}else{
+					$availableURIs[] = $dynamicRoute->requestPath;
+				}
+			}
+
+			return $availableURIs;
+		}
+
+		/**
 		 * Routes a request to a controller
+		 * @throws RouteMethodMustHaveANonNullReturn
+		 * @throws \ReflectionException
 		 */
 		public function route(
-			string $requestMethod,
 			RequestHandler $currentRequestHandler,
 		): mixed{
+			$requestMethod = $this->requestMethod;
+			$filteredRoutableMethods = $this->filterOutRoutesWithNonMatchingBase($this->routableMethods);
 
 			// Go through all the methods collected from the controller classes
-			foreach ($this->routableMethods as $methodData){
+			foreach ($filteredRoutableMethods as $methodData){
 				$classInstance = $methodData[0];
 				$methods = $methodData[1];
 
@@ -250,11 +433,6 @@
 				// The base, at this point, is already checked and the $requestPath
 				// below will have the base chopped off
 				$requestPath = $methodData[2];
-
-				if (!str_starts_with($requestPath, "/")){
-					$requestPath = "/" . $requestPath;
-				}
-
 
 				// The router will first find all methods
 				// that have a matching route.
@@ -319,6 +497,8 @@
 					// The first one to pass all should be invoked as the correct
 					// route.
 					$acceptedRoutes = [];
+
+					/** @var \ReflectionMethod $routableMethod */
 					foreach ($routeMethodsToAttempt as $routableMethod){
 						$attributes = $routableMethod->getAttributes();
 
@@ -357,12 +537,7 @@
 											$newRouter->noxConfig = $this->noxConfig;
 											$newRouter->controllersFolder = $this->controllersFolder;
 											$newRouter->loadMVCControllers();
-											$newRequestHandler = new RequestHandler(
-												$newRouter,
-												$attributeResponse->newRequestPath,
-												$currentRequestHandler->requestType,
-												$currentRequestHandler->recursionDepth,
-											);
+											$newRequestHandler = new RequestHandler($newRouter);
 											$newRequestHandler->processRequest();
 											exit();
 										}else{
@@ -373,7 +548,7 @@
 									}else{
 										// Break this current loop and move on to the next.
 										// The route isn't usable, but the attribute response
-										// did not change the request code or path
+										// did not change the HTTP response code or rewrite the route path
 										break 1;
 									}
 								}
@@ -383,12 +558,108 @@
 						// If the number of valid RouteAttribute attributes equals the number
 						// found on this route method, then invoke this route controller
 						if ($passedAttributes === $neededToRoute){
-							return $routableMethod->invoke($classInstance);
+							$routeReturn = $routableMethod->invoke($classInstance);
+							if ($routeReturn === null){
+								// A route must have a return type, otherwise
+								// returning null here would make the request handler
+								// think this is a 404
+								throw new RouteMethodMustHaveANonNullReturn(
+									sprintf(
+										"A route was matched and the method %s::%s was called, but null was returned. All route methods must have a non-null return type.",
+										$classInstance::class,
+										$routableMethod->name,
+									)
+								);
+							}else{
+								return $routeReturn;
+							}
 						}
 					}
 				}
-
 			}
+
+			// If nothing was returned at this point, now check all of the dynamic routes
+			// that are manually added
+			/** @var DynamicRoute $dynamicRoute */
+			foreach($this->dynamicRoutes as $dynamicRoute){
+				// Check if this route can be processed
+
+				if ($dynamicRoute->requestMethod === $this->requestMethod) {
+					if ($dynamicRoute->onRouteCheck !== null) {
+						/** @var DynamicRouteResponse $dynamicRouteResponse */
+						$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call(new BaseController);
+						if ($dynamicRouteResponse->isRouteUsable === true) {
+							// All good
+						} else {
+							if ($dynamicRouteResponse->responseCode !== null || $dynamicRouteResponse->newRequestPath !== null) {
+								if ($dynamicRouteResponse->responseCode !== null) {
+									http_response_code($dynamicRouteResponse->responseCode);
+								}
+								if ($dynamicRouteResponse->newRequestPath !== null) {
+									// There is a new request path
+									// Instantiate a new request handler now and handle it
+									// A new router must also be created
+									$newRouter = new Router(
+										$dynamicRouteResponse->newRequestPath,
+										$this->requestMethod,
+									);
+									$newRouter->staticFileHandler = $this->staticFileHandler;
+									$newRouter->viewSettings = $this->viewSettings;
+									$newRouter->noxConfig = $this->noxConfig;
+									$newRouter->controllersFolder = $this->controllersFolder;
+									$newRouter->loadMVCControllers();
+									$newRequestHandler = new RequestHandler($newRouter);
+									$newRequestHandler->processRequest();
+									exit();
+								}
+							}else{
+								// Just skip this route
+								continue;
+							}
+						}
+					}
+
+					// If we're here, then this route can be checked against the current URI
+					if ($dynamicRoute->isRegex === false) {
+						if ($this->requestPath === $dynamicRoute->requestPath) {
+							$renderReturn = $dynamicRoute->onRender->call(new BaseController);
+							if ($renderReturn === null){
+								throw new RouteMethodMustHaveANonNullReturn(
+									sprintf(
+										"A dynamic route was matched and called for the route %s, but the dynamic route's onRender callback returned null. All dynamic route callbacks must return a non-null value.",
+										$this->requestPath,
+									)
+								);
+							}
+							return $renderReturn;
+						}
+					}else{
+						// Regex checks
+						$didMatch = preg_match_all($dynamicRoute->requestPath, $this->requestPath, $matches);
+						if ($didMatch === 1){
+							// Add the matches to the requests GET array
+							foreach ($matches as $name=>$match){
+								if (is_string($name)){
+									if (isset($match[0])){
+										$_GET[$name] = $match[0];
+									}
+								}
+							}
+							$renderReturn = $dynamicRoute->onRender->call(new BaseController);
+							if ($renderReturn === null){
+								throw new RouteMethodMustHaveANonNullReturn(
+									sprintf(
+										"A dynamic route was matched and called for the route %s, but the dynamic route's onRender callback returned null. All dynamic route callbacks must return a non-null value.",
+										$this->requestPath,
+									)
+								);
+							}
+							return $renderReturn;
+						}
+					}
+				}
+			}
+
 			return null;
 		}
 	}

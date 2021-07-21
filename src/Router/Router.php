@@ -383,7 +383,21 @@
 						// If the number of valid RouteAttribute attributes equals the number
 						// found on this route method, then invoke this route controller
 						if ($passedAttributes === $neededToRoute){
-							return $routableMethod->invoke($classInstance);
+							$routeReturn = $routableMethod->invoke($classInstance);
+							if ($routeReturn === null){
+								// A route must have a return type, otherwise
+								// returning null here would make the request handler
+								// think this is a 404
+								throw new RouteMethodMustHaveANonNullReturn(
+									sprintf(
+										"A route was matched and the method %s::%s was called, but null was returned. All route methods must have a non-null return type.",
+										$classInstance::class,
+										$routableMethod->name,
+									)
+								);
+							}else {
+								return $routeReturn;
+							}
 						}
 					}
 				}

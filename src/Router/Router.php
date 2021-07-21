@@ -188,24 +188,41 @@
 				}else{
 					// The class name _must_ be the file name minus the extension
 					$fileExtension = pathinfo($controllerFileName, PATHINFO_EXTENSION);
-					if ($fileExtension === "php"){
+					if ($fileExtension === "php") {
 						$className = pathinfo($controllerFileName, PATHINFO_FILENAME);
 						require_once $controllerPath;
 						$classReflector = new \ReflectionClass($className);
 						$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
-						try {
-							$baselessRequestPath = $this->getBaselessRouteForClass($classReflector);
-							$this->routableMethods[] = [
-								new $className(),
-								$controllerMethods,
-								$baselessRequestPath,
-							];
-						}catch(RouteBaseNoMatch $e){
-
-						}
+						$this->routableMethods[] = [
+							new $className(),
+							$controllerMethods,
+							$this->requestPath,
+						];
 					}
 				}
 			}
+		}
+
+		/**
+		 * Will filter out the methods that do not have the right base
+		 */
+		private function filterOutRoutesWithNonMatchingBase(array $routableMethods): array{
+			$filteredRoutableMethods = [];
+			foreach($this->routableMethods as $methodData){
+				$classInstance = $methodData[0];
+				try {
+					$baselessRequestPath = $this->getBaselessRouteForClass(new \ReflectionClass($classInstance));
+					$filteredRoutableMethods[] = [
+						$classInstance,
+						$methodData[1],
+						$baselessRequestPath,
+					];
+				}catch(RouteBaseNoMatch $e){
+					continue;
+				}
+			}
+
+			return $filteredRoutableMethods;
 		}
 
 		/**
@@ -263,6 +280,107 @@
 		}
 
 		/**
+		 * Attempts to fetch the base route from a class, if it has one. If the class
+		 * has no RouteBase, then null is returned
+		 */
+		public function getRouteBaseFromClass(\ReflectionClass $reflectionClass): ?object{
+			$attributes = $reflectionClass->getAttributes();
+
+			/** @var \ReflectionAttribute $attribute */
+			foreach($attributes as $attribute){
+				if ($attribute->getName() === "Nox\\Router\\Attributes\\RouteBase"){
+					/** @var RouteBase $attrInstance */
+					return $attribute->newInstance();
+				}
+			}
+
+			return null;
+		}
+
+		/**
+		 * Fetches all accessible routable URIs.
+		 * An accessible route is determined by the calling HTTP session.
+		 * For example, a user logged in will see different available routes
+		 * returned here than a user that is not logged in (should that route method
+		 * implement an attribute that denies unauthenticated session).
+		 */
+		public function getAllAccessibleRouteURIs(
+			bool $includeRegexRoutes = false,
+		): array{
+			$availableURIs = [];
+
+			/** @var array $methodData */
+			foreach ($this->routableMethods as $methodData){
+				$classInstance = $methodData[0];
+				$classReflection = new \ReflectionClass($classInstance);
+
+				// Get the route base, if there is one
+				/** @var RouteBase $routeBase */
+				$routeBase = $this->getRouteBaseFromClass($classReflection);
+				$baseUri = "";
+				if ($routeBase){
+					if ($routeBase->isRegex === false){
+						$baseUri = $routeBase->uri;
+					}else{
+						if ($routeBase->isRegex && $includeRegexRoutes){
+							$baseUri = $routeBase->uri;
+						}else{
+							continue;
+						}
+					}
+				}
+
+				/** @var \ReflectionMethod[] $methods */
+				$methods = $methodData[1];
+
+				/** @var \ReflectionMethod $method */
+				foreach($methods as $method){
+					// Get the attributes (if any) of the method
+					$attributes = $method->getAttributes();
+
+					// Variables to keep track of route-affecting attributes
+					// and if they allow the route to pass.
+					$numMethodsToBeApproved = 0;
+					$numMethodsApproved = 0;
+					$thisMethodURI = null;
+					foreach($attributes as $attribute){
+						$routeAttribute = $attribute->newInstance();
+						if ($attribute->getName() === "Nox\\Router\\Attributes\\Route"){
+							/** @var Route $routeAttribute */
+							if ($routeAttribute->isRegex === true && $includeRegexRoutes) {
+								$thisMethodURI = $baseUri . $routeAttribute->uri;
+							}elseif ($routeAttribute->isRegex === false){
+								$thisMethodURI = $baseUri . $routeAttribute->uri;
+							}else{
+								// Skip this method
+								// It's a regex route but includeRegexRoutes is false
+								continue;
+							}
+						}else{
+							if ($routeAttribute instanceof RouteAttribute){
+								++$numMethodsToBeApproved;
+								if ($routeAttribute->getAttributeResponse()->isRouteUsable){
+									++$numMethodsApproved;
+								}
+							}
+						}
+					}
+
+					// Did this route's other methods match to the needed amount to be approved
+					// As in, is this route usable/accessible by the current HTTP session that
+					// calls this function in the first place?
+					if ($numMethodsToBeApproved === $numMethodsApproved){
+						if ($thisMethodURI !== null) {
+							$availableURIs[] = $thisMethodURI;
+						}
+					}
+				}
+			}
+
+			return $availableURIs;
+		}
+
+		/**
 		 * Routes a request to a controller
 		 * @throws RouteMethodMustHaveANonNullReturn
 		 * @throws \ReflectionException
@@ -271,9 +389,10 @@
 			RequestHandler $currentRequestHandler,
 		): mixed{
 			$requestMethod = $this->requestMethod;
+			$filteredRoutableMethods = $this->filterOutRoutesWithNonMatchingBase($this->routableMethods);
 
 			// Go through all the methods collected from the controller classes
-			foreach ($this->routableMethods as $methodData){
+			foreach ($filteredRoutableMethods as $methodData){
 				$classInstance = $methodData[0];
 				$methods = $methodData[1];
 

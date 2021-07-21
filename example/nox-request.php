@@ -20,11 +20,7 @@
 	Abyss::loadConfig(__DIR__);
 
 	// Load the request handler
-	$requestHandler = new \Nox\Router\RequestHandler(
-		$router,
-		$requestPath,
-		$_SERVER['REQUEST_METHOD']
-	);
+	$requestHandler = new \Nox\Router\RequestHandler($router);
 
 	// Process the request
 	$requestHandler->processRequest();

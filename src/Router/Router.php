@@ -35,7 +35,8 @@
 			public string $requestMethod,
 		){
 			// Force the requestPath and requestMethod to be lowercase
-			$this->requestPath = strtolower($this->requestPath);
+			// UPDATE Do not lower the request path. Linux is case sensitive for files
+			// $this->requestPath = strtolower($this->requestPath);
 			$this->requestMethod = strtolower($this->requestMethod);
 
 			if (!str_starts_with($this->requestPath, "/")){

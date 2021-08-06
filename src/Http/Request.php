@@ -3,8 +3,8 @@
 	namespace Nox\Http;
 
 	/**
-	* An abstraction for the request payload
-	*/
+	 * An abstraction for the request payload
+	 */
 	class Request
 	{
 
@@ -131,24 +131,22 @@
 		{
 			$requestMethod = strtolower($_SERVER['REQUEST_METHOD']);
 			$contentType = $_SERVER['CONTENT_TYPE'];
-			preg_match("/multipart\/form-data; boundary=(.+)/", $contentType, $matches);
-			$boundary = $matches[1];
-			if ($requestMethod === "patch" || $requestMethod === "post" || $requestMethod === "put") {
+			$didMatch = preg_match("/multipart\/form-data; boundary=(.+)/", $contentType, $matches);
+			if ($didMatch === 1) {
+				$boundary = $matches[1];
 				$formData = [];
 				$parsedFormData = $this->getAllFormDataFromRequest($boundary);
 				foreach ($parsedFormData as $packet) {
 					foreach ($packet['headers'] as $header) {
 						$parsedHeader = $this->parseHeaderValue($header);
-						if (array_key_exists("name", $parsedHeader)){
+						if (array_key_exists("name", $parsedHeader)) {
 							$formData[$parsedHeader['name']] = $packet['body'];
 						}
 					}
 				}
-
-				return $formData;
-			}else{
-				return [];
 			}
+
+			return $formData;
 		}
 
 		/**

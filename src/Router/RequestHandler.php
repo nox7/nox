@@ -3,6 +3,7 @@
 	namespace Nox\Router;
 
 	use Nox\Http\Redirect;
+	use Nox\Http\Rewrite;
 	use Nox\Router\Exceptions\RecursionDepthExceeded;
 
 	require_once __DIR__ . "/ViewSettings.php";
@@ -59,11 +60,31 @@
 		 */
 		public function processRequest(): void{
 			$routeResult = $this->getRouteResult();
-			if ($routeResult instanceof Redirect){
+			if ($routeResult instanceof Redirect) {
+				/** @var Redirect $routeResult */
 				http_response_code($routeResult->statusCode);
 				header(
 					sprintf("location: %s", $routeResult->path)
 				);
+				exit();
+			}elseif ($routeResult instanceof Rewrite){
+				/** @var Rewrite $routeResult */
+				http_response_code($routeResult->statusCode);
+				$rewriteRouter = new Router(
+					requestPath:"/404",
+					requestMethod: "get",
+				);
+				$rewriteRouter->staticFileHandler = $this->router->staticFileHandler;
+				$rewriteRouter->viewSettings = $this->router->viewSettings;
+				$rewriteRouter->noxConfig = $this->router->noxConfig;
+				$rewriteRouter->controllersFolder = $this->router->controllersFolder;
+				$rewriteRouter->loadMVCControllers();
+				$rewriteRouter = new RequestHandler(
+					$rewriteRouter,
+					++$this->recursionDepth,
+				);
+				$rewriteRouter->processRequest();
+
 				exit();
 			}elseif ($routeResult !== null){
 				// Successful route with an outputtable result.

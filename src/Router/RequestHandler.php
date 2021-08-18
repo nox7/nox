@@ -61,17 +61,15 @@
 		public function processRequest(): void{
 			$routeResult = $this->getRouteResult();
 			if ($routeResult instanceof Redirect) {
-				/** @var Redirect $routeResult */
 				http_response_code($routeResult->statusCode);
 				header(
 					sprintf("location: %s", $routeResult->path)
 				);
 				exit();
 			}elseif ($routeResult instanceof Rewrite){
-				/** @var Rewrite $routeResult */
 				http_response_code($routeResult->statusCode);
 				$rewriteRouter = new Router(
-					requestPath:"/404",
+					requestPath:$routeResult->path,
 					requestMethod: "get",
 				);
 				$rewriteRouter->staticFileHandler = $this->router->staticFileHandler;

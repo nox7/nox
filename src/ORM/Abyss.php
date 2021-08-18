@@ -287,22 +287,36 @@
 		}
 
 		/**
-		 * Either creates (using INSERT) or saves (UPDATEs values) a class following a Model's structure.
-		 * The return will be null if an UPDATE occurred or an integer representing the new insert_id of the row
-		 * if an INSERT occurred.
+		 * Builds a save query for a ModelInstance
 		 */
-		public function saveOrCreate(ModelInstance $classInstance): null|int{
+		public function buildSaveQuery(
+			ModelInstance $classInstance,
+			bool $usePreparedStatement = true,
+		): array {
 			$model = $classInstance->getModel();
 			$tableName = $model->getName();
 			$columnNameList = [];
 			$columnValues = [];
+			$rawQueryColumnValues = [];
 			$preparedStatementTypeFlags = "";
 
 			/** @var ColumnDefinition $columnDefinition */
 			foreach($model->getColumns() as $columnDefinition){
+				$mysqlBoundParameterFlagType = $columnDefinition->dataType->mySQLBoundParameterType;
+				$columnValue = $classInstance->{$columnDefinition->classPropertyName};
 				$columnNameList[] = $columnDefinition->name;
-				$columnValues[] = $classInstance->{$columnDefinition->classPropertyName};
-				$preparedStatementTypeFlags .= $columnDefinition->dataType->mySQLBoundParameterType;
+				$columnValues[] = $columnValue;
+
+				$preparedStatementTypeFlags .= $mysqlBoundParameterFlagType;
+				if ($columnValue !== null) {
+					if ($mysqlBoundParameterFlagType === "s" or $mysqlBoundParameterFlagType === "b") {
+						$rawQueryColumnValues[] = sprintf('"%s"', $this->getConnection()->escape_string($columnValue));
+					} else {
+						$rawQueryColumnValues[] = sprintf("%s", $this->getConnection()->escape_string((string)$columnValue));
+					}
+				}else{
+					$rawQueryColumnValues[] = "NULL";
+				}
 			}
 
 			// Handle the column definition MySQL syntax for the INSERT portion
@@ -319,19 +333,79 @@
 			$columnNameListAsMySQLSyntax = rtrim($columnNameListAsMySQLSyntax, ",");
 			$columnUpdateMySQLSyntax = rtrim($columnUpdateMySQLSyntax, ",");
 
-			$questionMarksForPreparedQuery = array_fill(0, count($columnNameList), "?");
-			$query = sprintf(
-				"INSERT INTO `%s` (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s",
-				$tableName,
-				$columnNameListAsMySQLSyntax,
-				implode(",", $questionMarksForPreparedQuery),
-				$columnUpdateMySQLSyntax,
+			if ($usePreparedStatement) {
+				$questionMarksForPreparedQuery = array_fill(0, count($columnNameList), "?");
+				$query = sprintf(
+					"INSERT INTO `%s` (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s",
+					$tableName,
+					$columnNameListAsMySQLSyntax,
+					implode(",", $questionMarksForPreparedQuery),
+					$columnUpdateMySQLSyntax,
+				);
+			}else{
+				$query = sprintf(
+					"INSERT INTO `%s` (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s",
+					$tableName,
+					$columnNameListAsMySQLSyntax,
+					implode(",", $rawQueryColumnValues),
+					$columnUpdateMySQLSyntax,
+				);
+			}
+
+			return [
+				"query"=>$query,
+				"preparedStatementFlags"=>$preparedStatementTypeFlags,
+				"columnValues"=>$columnValues
+			];
+		}
+
+		/**
+		 * Uses mysqli's multi_query functionality to mass save or create (UPDATE OR INSERT) an array
+		 * of ModelClass instances. This lightens the network payload when sending mass updates instead
+		 * of looping them one by one in PHP
+		 * @param ModelClass[] $modelClasses
+		 */
+		public function saveOrCreateAll(array $modelClasses): void{
+			$allQueries = [];
+			$primaryKeyName = $this->getPrimaryKey($modelClasses[0]::getModel());
+
+			foreach($modelClasses as $modelClass) {
+				/** @var array{query: string, preparedStatementFlags: array, columnValues: array} $builtQuery */
+				$builtQuery = $this->buildSaveQuery(
+					classInstance: $modelClass,
+					usePreparedStatement: false,
+				);
+				$allQueries[] = $builtQuery['query'];
+			}
+
+			$this->getConnection()->multi_query(implode(";", $allQueries));
+			$currentModelClassIndex = 0;
+			do{
+				$insertID = $this->getConnection()->insert_id;
+				if ($insertID !== 0){
+					$modelClasses[$currentModelClassIndex]->{$primaryKeyName} = $insertID;
+				}
+				++$currentModelClassIndex;
+			}while($this->getConnection()->next_result());
+		}
+
+		/**
+		 * Either creates (using INSERT) or saves (UPDATEs values) a class following a Model's structure.
+		 * The return will be null if an UPDATE occurred or an integer representing the new insert_id of the row
+		 * if an INSERT occurred.
+		 */
+		public function saveOrCreate(ModelInstance $classInstance): null|int{
+
+			/** @var array{query: string, preparedStatementFlags: array, columnValues: array} $builtQuery */
+			$builtQuery = $this->buildSaveQuery(
+				classInstance: $classInstance,
+				usePreparedStatement:true,
 			);
 
-			$statement = $this->getConnection()->prepare($query);
+			$statement = $this->getConnection()->prepare($builtQuery['query']);
 			$statement->bind_param(
-				$preparedStatementTypeFlags,
-				...$columnValues
+				$builtQuery['preparedStatementFlags'],
+				...$builtQuery['columnValues'],
 			);
 			$statement->execute();
 			$result = $statement->get_result();

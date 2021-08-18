@@ -2,11 +2,42 @@
 
 	namespace Nox\ORM;
 
-	use Exception;
+	use Nox\ORM\Exceptions\NoPrimaryKey;
 	use \Nox\ORM\Interfaces\ModelInstance;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
 
 	class ModelClass implements ModelInstance{
+
+		/**
+		 * Fetches a ModelClass by the primary key
+		 */
+		public static function fetch(mixed $primaryKey): ModelClass|null{
+			$abyss = new Abyss();
+			$thisModel = static::getModel();
+			$primaryKeyClassPropertyName = $abyss->getPrimaryKey($thisModel);
+			return $abyss->fetchInstanceByModelPrimaryKey(
+				model: $thisModel,
+				keyValue: $primaryKey,
+			);
+		}
+
+		/**
+		 * Queries all instances of ModelClass that meet the provided query criteria from
+		 * the provided parameters. Will always return an array, but the array may be empty.
+		 */
+		public static function query(
+			ColumnQuery $columnQuery = null,
+			ResultOrder $resultOrder = null,
+			Pager $pager = null,
+		): array {
+			$abyss = new Abyss();
+			return $abyss->fetchInstances(
+				model: static::getModel(),
+				columnQuery: $columnQuery,
+				resultOrder: $resultOrder,
+				pager: $pager,
+			);
+		}
 
 		/**
 		 * @throws Exceptions\ObjectMissingModelProperty
@@ -34,7 +65,7 @@
 
 		/**
 		 * Deletes a singular class model instance
-		 * @throws Exception
+		 * @throws NoPrimaryKey
 		 */
 		public function delete():void{
 			$abyss = new Abyss;

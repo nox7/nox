@@ -9,6 +9,37 @@
 	class ModelClass implements ModelInstance{
 
 		/**
+		 * Fetches a ModelClass by the primary key
+		 */
+		public static function fetch(mixed $primaryKey): ModelClass|null{
+			$abyss = new Abyss();
+			$thisModel = static::getModel();
+			$primaryKeyClassPropertyName = $abyss->getPrimaryKey($thisModel);
+			return $abyss->fetchInstanceByModelPrimaryKey(
+				model: $thisModel,
+				keyValue: $primaryKey,
+			);
+		}
+
+		/**
+		 * Queries all instances of ModelClass that meet the provided query criteria from
+		 * the provided parameters. Will always return an array, but the array may be empty.
+		 */
+		public static function query(
+			ColumnQuery $columnQuery = null,
+			ResultOrder $resultOrder = null,
+			Pager $pager = null,
+		): array {
+			$abyss = new Abyss();
+			return $abyss->fetchInstances(
+				model: static::getModel(),
+				columnQuery: $columnQuery,
+				resultOrder: $resultOrder,
+				pager: $pager,
+			);
+		}
+
+		/**
 		 * @throws Exceptions\ObjectMissingModelProperty
 		 */
 		public function __construct(ModelInstance $modelClass){

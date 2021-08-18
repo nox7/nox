@@ -2,12 +2,14 @@
 
 	namespace Nox\ORM;
 
+	use Nox\ORM\Exceptions\NoPrimaryKey;
 	use Nox\ORM\Exceptions\ObjectMissingModelProperty;
 	use Nox\ORM\Interfaces\ModelInstance;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
 	use Nox\ORM\MySQLDataTypes\DataType;
 
 	require_once __DIR__ . "/Exceptions/ObjectMissingModelProperty.php";
+	require_once __DIR__ . "/Exceptions/NoPrimaryKey.php";
 
 	class Abyss{
 
@@ -374,7 +376,7 @@
 				$statement->bind_param($boundParameterFlag, $classInstance->{$primaryPropertyName});
 				$statement->execute();
 			}else{
-				throw new \Exception("No primary key set for table " . $model->getName());
+				throw new NoPrimaryKey("No primary key set for table " . $model->getName());
 			}
 		}
 

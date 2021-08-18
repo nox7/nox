@@ -2,7 +2,7 @@
 
 	namespace Nox\ORM;
 
-	use Exception;
+	use Nox\ORM\Exceptions\NoPrimaryKey;
 	use \Nox\ORM\Interfaces\ModelInstance;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
 
@@ -34,7 +34,7 @@
 
 		/**
 		 * Deletes a singular class model instance
-		 * @throws Exception
+		 * @throws NoPrimaryKey
 		 */
 		public function delete():void{
 			$abyss = new Abyss;

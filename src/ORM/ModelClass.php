@@ -14,7 +14,6 @@
 		public static function fetch(mixed $primaryKey): ModelClass|null{
 			$abyss = new Abyss();
 			$thisModel = static::getModel();
-			$primaryKeyClassPropertyName = $abyss->getPrimaryKey($thisModel);
 			return $abyss->fetchInstanceByModelPrimaryKey(
 				model: $thisModel,
 				keyValue: $primaryKey,

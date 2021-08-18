@@ -40,6 +40,15 @@
 		}
 
 		/**
+		 * Runs a large-scale UPDATE query to save all of the
+		 * ModelClass instances by their primary key
+		 */
+		public static function saveAll(array $modelClasses): void{
+			$abyss = new Abyss();
+			$abyss->saveOrCreateAll($modelClasses);
+		}
+
+		/**
 		 * @throws Exceptions\ObjectMissingModelProperty
 		 */
 		public function __construct(ModelInstance $modelClass){

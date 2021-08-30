@@ -295,6 +295,7 @@
 		): array {
 			$model = $classInstance->getModel();
 			$tableName = $model->getName();
+			$primaryKeyName = $this->getPrimaryKey($model);
 			$columnNameList = [];
 			$columnValues = [];
 			$rawQueryColumnValues = [];
@@ -326,7 +327,11 @@
 
 			foreach($columnNameList as $columnName){
 				$columnNameListAsMySQLSyntax .= sprintf("`%s`,", $columnName);
-				$columnUpdateMySQLSyntax .= sprintf("`%s` = VALUES(`%s`),", $columnName, $columnName);
+
+				// Do not update the primary key
+				if ($columnName !== $primaryKeyName) {
+					$columnUpdateMySQLSyntax .= sprintf("`%s` = VALUES(`%s`),", $columnName, $columnName);
+				}
 			}
 
 			// Remove the trailing commas
@@ -455,8 +460,8 @@
 		}
 
 		/**
-		* Syncs all models to the database
-		*/
+		 * Syncs all models to the database
+		 */
 		public function syncModels(): void{
 			$fileNames = array_diff(scandir(self::$modelsDirectory), ['.','..']);
 			foreach ($fileNames as $fileName){
@@ -565,8 +570,8 @@
 		 */
 		protected function isColumnAUniqueIndex(string $tableName, string $columnName): bool{
 			$result = $this->getConnection()->query(sprintf(
-				"SHOW INDEXES FROM `%s` WHERE `Column_name`='%s' AND Non_unique=0 AND Key_name != \"PRIMARY\"",
-				$tableName, $columnName
+					"SHOW INDEXES FROM `%s` WHERE `Column_name`='%s' AND Non_unique=0 AND Key_name != \"PRIMARY\"",
+					$tableName, $columnName
 				)
 			);
 			return $result->num_rows > 0;
@@ -753,8 +758,8 @@
 		}
 
 		/**
-		* Creates a table following a model
-		*/
+		 * Creates a table following a model
+		 */
 		protected function createNewTable(MySQLModelInterface $model): void{
 			$connection = $this->getConnection();
 			$tableName = $model->getName();

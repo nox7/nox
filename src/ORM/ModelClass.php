@@ -39,6 +39,40 @@
 		}
 
 		/**
+		 * Utilizes the MySQL COUNT() function to quickly
+		 * fetch the number of results returned on this instance
+		 * and provided $columnQuery
+		 */
+		public static function count(
+			ColumnQuery $columnQuery = null,
+		): int {
+			$abyss = new Abyss();
+			$model = static::getModel();
+
+			$whereClause = "";
+			$preparedStatementBindFlags = "";
+			$boundValues = [];
+			if ($columnQuery !== null){
+				list($whereClause,$preparedStatementBindFlags, $boundValues) = $abyss->buildWhereClause($model, $columnQuery);
+			}
+
+			$query = sprintf(
+				"SELECT COUNT(*) AS totalCount FROM `%s` %s",
+				$model->getName(),
+				$whereClause,
+			);
+			$statement = $abyss->getConnection()->prepare($query);
+			if ($columnQuery !== null) {
+				$statement->bind_param($preparedStatementBindFlags, $boundValues);
+			}
+			$statement->execute();
+			$result = $statement->get_result();
+
+			$row = $result->fetch_assoc();
+			return (int) $row['totalCount'];
+		}
+
+		/**
 		 * Runs a large-scale UPDATE query to save all of the
 		 * ModelClass instances by their primary key
 		 */

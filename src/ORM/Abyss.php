@@ -194,6 +194,59 @@
 		}
 
 		/**
+		 * Builds a WHERE clause from a ColumnQuery
+		 * @return array{string, string}
+		 */
+		public function buildWhereClause(MySQLModelInterface $model, ColumnQuery $columnQuery): array
+		{
+			$whereClause = "WHERE ";
+			$preparedBindDataTypes = "";
+			$boundValues = [];
+
+			/** @var array $clause */
+			foreach ($columnQuery->whereClauses as $clause) {
+				$clauseType = $clause['clauseType'];
+				if ($clauseType === "conditionGroup") {
+					$groupPosition = $clause['conditionGroupPosition'];
+					if ($groupPosition === "start") {
+						$whereClause .= "(";
+					} elseif ($groupPosition === "end") {
+						$whereClause .= ")";
+					}
+				} elseif ($clauseType === "joinCondition") {
+					$whereClause .= sprintf(" %s ", $clause['clauseJoinWord']);
+				} elseif ($clauseType === "where") {
+					$columnName = $clause['column'];
+					$condition = trim(strtolower($clause['condition']));
+					$value = $clause['value'];
+					if ($condition !== "is" && $condition !== "is not") {
+
+						// Find the data type flag for this column name
+						/** @var ColumnDefinition $columnDefinition */
+						foreach ($model->getColumns() as $columnDefinition) {
+							if ($columnDefinition->name === $columnName) {
+								$preparedBindDataTypes .= $columnDefinition->dataType->mySQLBoundParameterType;
+								break;
+							}
+						}
+
+						$boundValues[] = $value;
+						$whereClause .= sprintf("`%s` %s ?", $columnName, $condition);
+					} else {
+						// IS or IS NOT null checks
+						$whereClause .= sprintf("`%s` %s %s", $columnName, $condition, $value);
+					}
+				}
+			}
+
+			return [
+				$whereClause,
+				$preparedBindDataTypes,
+				$boundValues,
+			];
+		}
+
+		/**
 		 * Returns class instances that match the keyValueColumns pairs.
 		 * Identified by a primary key.
 		 */
@@ -214,42 +267,7 @@
 			$preparedBindDataTypes = "";
 			$boundValues = [];
 			if ($columnQuery !== null) {
-				$whereClause = "WHERE ";
-				/** @var array $clause */
-				foreach ($columnQuery->whereClauses as $clause) {
-					$clauseType = $clause['clauseType'];
-					if ($clauseType === "conditionGroup") {
-						$groupPosition = $clause['conditionGroupPosition'];
-						if ($groupPosition === "start") {
-							$whereClause .= "(";
-						} elseif ($groupPosition === "end") {
-							$whereClause .= ")";
-						}
-					} elseif ($clauseType === "joinCondition") {
-						$whereClause .= sprintf(" %s ", $clause['clauseJoinWord']);
-					} elseif ($clauseType === "where") {
-						$columnName = $clause['column'];
-						$condition = trim(strtolower($clause['condition']));
-						$value = $clause['value'];
-						if ($condition !== "is" && $condition !== "is not") {
-
-							// Find the data type flag for this column name
-							/** @var ColumnDefinition $columnDefinition */
-							foreach ($model->getColumns() as $columnDefinition) {
-								if ($columnDefinition->name === $columnName) {
-									$preparedBindDataTypes .= $columnDefinition->dataType->mySQLBoundParameterType;
-									break;
-								}
-							}
-
-							$boundValues[] = $value;
-							$whereClause .= sprintf("`%s` %s ?", $columnName, $condition);
-						} else {
-							// IS or IS NOT null checks
-							$whereClause .= sprintf("`%s` %s %s", $columnName, $condition, $value);
-						}
-					}
-				}
+				list($whereClause, $preparedBindDataTypes, $boundValues) = $this->buildWhereClause($model, $columnQuery);
 			}
 
 			// Build the ORDER BY clause

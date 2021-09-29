@@ -47,8 +47,6 @@
 			ResultOrder $resultOrder = null,
 			Pager $pager = null,
 		): ?ModelClass {
-			$abyss = new Abyss();
-
 			/** @var ModelClass[] $modelClasses */
 			$modelClasses = self::query(
 				columnQuery: $columnQuery,

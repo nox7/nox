@@ -39,6 +39,29 @@
 		}
 
 		/**
+		 * Performs a query on the instances of the ModelClass and returns a single matching ModelClass
+		 * that meets the criteria provided, or null.
+		 */
+		public static function queryOne(
+			ColumnQuery $columnQuery = null,
+			ResultOrder $resultOrder = null,
+			Pager $pager = null,
+		): ?ModelClass {
+			/** @var ModelClass[] $modelClasses */
+			$modelClasses = self::query(
+				columnQuery: $columnQuery,
+				resultOrder: $resultOrder,
+				pager: $pager,
+			);
+
+			if (empty($modelClasses)){
+				return null;
+			}else{
+				return $modelClasses[0];
+			}
+		}
+
+		/**
 		 * Utilizes the MySQL COUNT() function to quickly
 		 * fetch the number of results returned on this instance
 		 * and provided $columnQuery

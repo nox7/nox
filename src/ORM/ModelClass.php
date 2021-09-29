@@ -50,8 +50,7 @@
 			$abyss = new Abyss();
 
 			/** @var ModelClass[] $modelClasses */
-			$modelClasses = $abyss->fetchInstances(
-				model: static::getModel(),
+			$modelClasses = self::query(
 				columnQuery: $columnQuery,
 				resultOrder: $resultOrder,
 				pager: $pager,

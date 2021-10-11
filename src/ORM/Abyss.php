@@ -206,6 +206,7 @@
 			/** @var array $clause */
 			foreach ($columnQuery->whereClauses as $clause) {
 				$clauseType = $clause['clauseType'];
+
 				if ($clauseType === "conditionGroup") {
 					$groupPosition = $clause['conditionGroupPosition'];
 					if ($groupPosition === "start") {
@@ -217,24 +218,35 @@
 					$whereClause .= sprintf(" %s ", $clause['clauseJoinWord']);
 				} elseif ($clauseType === "where") {
 					$columnName = $clause['column'];
+					$isRaw = $clause['raw'];
 					$condition = trim(strtolower($clause['condition']));
 					$value = $clause['value'];
-					if ($condition !== "is" && $condition !== "is not") {
 
-						// Find the data type flag for this column name
-						/** @var ColumnDefinition $columnDefinition */
-						foreach ($model->getColumns() as $columnDefinition) {
-							if ($columnDefinition->name === $columnName) {
-								$preparedBindDataTypes .= $columnDefinition->dataType->mySQLBoundParameterType;
-								break;
-							}
-						}
-
-						$boundValues[] = $value;
-						$whereClause .= sprintf("`%s` %s ?", $columnName, $condition);
-					} else {
-						// IS or IS NOT null checks
+					if ($isRaw){
 						$whereClause .= sprintf("`%s` %s %s", $columnName, $condition, $value);
+					}else {
+						if (
+							$condition !== "is" &&
+							$condition !== "is not" &&
+							$condition !== "in" &&
+							$condition !== "not in"
+						) {
+
+							// Find the data type flag for this column name
+							/** @var ColumnDefinition $columnDefinition */
+							foreach ($model->getColumns() as $columnDefinition) {
+								if ($columnDefinition->name === $columnName) {
+									$preparedBindDataTypes .= $columnDefinition->dataType->mySQLBoundParameterType;
+									break;
+								}
+							}
+
+							$boundValues[] = $value;
+							$whereClause .= sprintf("`%s` %s ?", $columnName, $condition);
+						} else {
+							// IS, IS NOT, IN, and NOT IN
+							$whereClause .= sprintf("`%s` %s %s", $columnName, $condition, $value);
+						}
 					}
 				}
 			}

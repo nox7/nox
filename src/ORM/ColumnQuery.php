@@ -55,12 +55,13 @@
 		/**
 		 * Adds a column query and returns self for chaining
 		 */
-		public function where(string $columnName, string $condition, mixed $value): ColumnQuery{
+		public function where(string $columnName, string $condition, mixed $value, bool $raw = false): ColumnQuery{
 			$this->whereClauses[] = [
 				"clauseType"=>"where",
 				"column"=>$columnName,
 				"condition"=>$condition,
 				"value"=>$value,
+				"raw"=>$raw,
 			];
 			return $this;
 		}

@@ -401,27 +401,29 @@
 		 * @param ModelClass[] $modelClasses
 		 */
 		public function saveOrCreateAll(array $modelClasses): void{
-			$allQueries = [];
-			$primaryKeyName = $this->getPrimaryKey($modelClasses[0]::getModel());
+			if (!empty($modelClasses)) {
+				$allQueries = [];
+				$primaryKeyName = $this->getPrimaryKey($modelClasses[0]::getModel());
 
-			foreach($modelClasses as $modelClass) {
-				/** @var array{query: string, preparedStatementFlags: array, columnValues: array} $builtQuery */
-				$builtQuery = $this->buildSaveQuery(
-					classInstance: $modelClass,
-					usePreparedStatement: false,
-				);
-				$allQueries[] = $builtQuery['query'];
-			}
-
-			$this->getConnection()->multi_query(implode(";", $allQueries));
-			$currentModelClassIndex = 0;
-			do{
-				$insertID = $this->getConnection()->insert_id;
-				if ($insertID !== 0){
-					$modelClasses[$currentModelClassIndex]->{$primaryKeyName} = $insertID;
+				foreach ($modelClasses as $modelClass) {
+					/** @var array{query: string, preparedStatementFlags: array, columnValues: array} $builtQuery */
+					$builtQuery = $this->buildSaveQuery(
+						classInstance: $modelClass,
+						usePreparedStatement: false,
+					);
+					$allQueries[] = $builtQuery['query'];
 				}
-				++$currentModelClassIndex;
-			}while($this->getConnection()->next_result());
+
+				$this->getConnection()->multi_query(implode(";", $allQueries));
+				$currentModelClassIndex = 0;
+				do {
+					$insertID = $this->getConnection()->insert_id;
+					if ($insertID !== 0) {
+						$modelClasses[$currentModelClassIndex]->{$primaryKeyName} = $insertID;
+					}
+					++$currentModelClassIndex;
+				} while ($this->getConnection()->next_result());
+			}
 		}
 
 		/**

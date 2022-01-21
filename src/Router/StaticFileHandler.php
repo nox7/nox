@@ -42,7 +42,7 @@
 			}else{
 				// Always process the global (blank) uriAlias last, if it exists
 				foreach($this->staticDirectories as $uriAlias=>$directoryPath){
-					if (!empty($uriAlias)) {
+					if (!empty($uriAlias) && $uriAlias !== "/") {
 						if (str_starts_with($filePath, $uriAlias)) {
 							// Replace the alias directory
 							$newPath = substr($filePath, strlen($uriAlias));
@@ -51,9 +51,19 @@
 					}
 				}
 
-				// Process the blank uriAlias last, here
+
+				if (array_key_exists("", $this->staticDirectories) && array_key_exists("/", $this->staticDirectories)){
+					throw new \Exception("You cannot have both an empty string key and a forward slash key in your static-directories nox.json settings. Please remove one of them.");
+				}
+
+				// Process the blank or single forward slash uriAlias last, here
+				// Because otherwise, it would always override and match any URI route and other static directory aliases would never match
 				if (array_key_exists("", $this->staticDirectories)){
 					return sprintf("%s/%s", $this->staticDirectories[""], $filePath);
+				}
+
+				if (array_key_exists("/", $this->staticDirectories)){
+					return sprintf("%s/%s", $this->staticDirectories["/"], $filePath);
 				}
 			}
 

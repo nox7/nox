@@ -86,7 +86,7 @@
 			);
 			$statement = $abyss->getConnection()->prepare($query);
 			if ($columnQuery !== null) {
-				$statement->bind_param($preparedStatementBindFlags, $boundValues);
+				$statement->bind_param($preparedStatementBindFlags, ...$boundValues);
 			}
 			$statement->execute();
 			$result = $statement->get_result();

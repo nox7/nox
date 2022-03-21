@@ -136,11 +136,18 @@
 				$boundary = $matches[1];
 				$formData = [];
 				$parsedFormData = $this->getAllFormDataFromRequest($boundary);
+				/** @var array{headers: array, body: string} $packet */
 				foreach ($parsedFormData as $packet) {
+					/** @var array{name: string, value: string, attributes: array} $header */
 					foreach ($packet['headers'] as $header) {
-						$parsedHeader = $this->parseHeaderValue($header);
-						if (array_key_exists("name", $parsedHeader)) {
-							$formData[$parsedHeader['name']] = $packet['body'];
+						if (strtolower($header['name']) === "content-disposition"){
+							// Fetch the name
+							/** @var array{name: string, value: string} $attribute */
+							foreach($header['attributes'] as $attribute){
+								if ($attribute['name'] === "name"){
+									$formData[$attribute['value']] = $packet['body'];
+								}
+							}
 						}
 					}
 				}
@@ -150,108 +157,184 @@
 		}
 
 		/**
+		 * Parses a single HTTP header line, as a header may contain a ; and then named attributes.
+		 * @param string $headerLine
+		 * @return array{name: string, value: string, attributes:array}
+		 */
+		private function parseHttpHeader(string $headerLine): array{
+			list($headerName, $headerRawData) = explode(":", $headerLine);
+			$header = [];
+			$attributes = [];
+			$headerValue = '';
+			// Parse the raw header until the first semi-colon or the end of the string
+			$charIndex = 0;
+			$char = $headerRawData[0];
+			while ($char !== null && $charIndex < strlen($headerRawData)){
+				if ($char !== ";"){
+					$headerValue .= $char;
+				}else{
+					break;
+				}
+				++$charIndex;
+				$char = $headerRawData[$charIndex] ?? null;
+			}
+
+			if ($charIndex < strlen($headerRawData) - 1){
+				// There are more header attributes to be parsed, such as a 'name'
+				$attributeParseStates = [
+					"NO_STATE"=>0,
+					"PARSING_NAME"=>1,
+					"PARSING_VALUE"=>2,
+				];
+				$attributeParseState = $attributeParseStates['NO_STATE'];
+				$attributeBuffer = "";
+				$attributeQuoteEncapsulation = ""; // The quote character used to encapsulate an attribute value, if any
+				$char = $headerRawData[++$charIndex] ?? null;
+				$currentAttribute = [];
+				while ($char !== null && $charIndex < strlen($headerRawData)){
+					switch($attributeParseState){
+						case $attributeParseStates['NO_STATE']:
+							if ($char !== " " && $char !== "," && $char !== ";"){
+								$attributeBuffer .= $char;
+								$attributeParseState = $attributeParseStates['PARSING_NAME'];
+							}
+							break;
+						case $attributeParseStates['PARSING_NAME']:
+							if ($char !== "="){
+								$attributeBuffer .= $char;
+							}else{
+								// Ignore, and change states to value
+								$attributeParseState = $attributeParseStates['PARSING_VALUE'];
+								$currentAttribute['name'] = $attributeBuffer;
+								$attributeBuffer = "";
+							}
+							break;
+						case $attributeParseStates['PARSING_VALUE']:
+							if (empty($attributeBuffer)){
+								if ($char === '"' || $char === "'"){
+									$attributeQuoteEncapsulation = $char;
+								}else{
+									$attributeBuffer .= $char;
+								}
+							}else{
+								if ($char === " "){
+									if (empty($attributeQuoteEncapsulation)){
+										// Done parsing
+										$currentAttribute['value'] = $attributeBuffer;
+										$attributeBuffer = "";
+										$attributes[] = $currentAttribute;
+										$currentAttribute = [];
+										$attributeParseState = $attributeParseStates['NO_STATE'];
+									}else{
+										// It's in the quotes, consume it
+										$attributeBuffer .= $char;
+									}
+								}else{
+									if (!empty($attributeQuoteEncapsulation) && $char === $attributeQuoteEncapsulation){
+										// Done with this attribute, emit it
+										$currentAttribute['value'] = $attributeBuffer;
+										$attributeBuffer = "";
+										$attributes[] = $currentAttribute;
+										$currentAttribute = [];
+										$attributeQuoteEncapsulation = "";
+										$attributeParseState = $attributeParseStates['NO_STATE'];
+									}else{
+										$attributeBuffer .= $char;
+									}
+								}
+							}
+							break;
+					}
+					++$charIndex;
+					$char = $headerRawData[$charIndex] ?? null;
+				}
+
+				// If the end of the line was hit during parsing and it had no string encapsulation
+				// then it was never emitted
+				if (!empty($attributeBuffer)){
+					$currentAttribute['value'] = $attributeBuffer;
+					$attributeBuffer = "";
+					$attributes[] = $currentAttribute;
+				}
+			}
+			$header['name'] = $headerName;
+			$header['value'] = trim($headerValue);
+			$header['attributes'] = $attributes;
+
+			return $header;
+		}
+
+		/**
 		 * Processes all the form-data in the raw request
+		 * @return array{headers: array, body: string}
 		 */
 		private function getAllFormDataFromRequest(string $boundary): array
 		{
+
+			$parseStates = [
+				"NO_STATE"=>0,
+				"EXPECT_HEADERS"=>1,
+				"EXPECT_BODY"=>2,
+			];
+
 			$data = [];
 			$rawBody = file_get_contents("php://input");
-			$state = "PARSE_BOUNDARY";
-			$currentPacket = null;
+			$state = $parseStates["NO_STATE"];
+			$currentPacket = [
+				"headers"=>[],
+				"body"=>"",
+			];
 			$buffer = "";
-			$lastHeaderName = "";
-			$index = 0;
-			$iterations = 0;
 			$maxIterations = 10000;
-			while (isset($rawBody[$index])) {
-				++$iterations;
-				if ($iterations > $maxIterations) {
-					break;
-				}
-				$char = $rawBody[$index];
-				$nextChar = $rawBody[$index + 1] ?? "";
-				if ($state === "PARSE_BOUNDARY") {
 
-					if ($buffer === "--" . $boundary) {
-						if ($char === "-") {
-							// Could signify ending of data
-							$buffer .= $char;
-							$state = "PARSE_LAST_BOUNDARY";
-							++$index;
-						} else {
-							$textChar = "";
-							if ($char === "\r"){
-								$textChar = '\r';
-							}elseif ($char === "\n"){
-								$textChar = '\n';
-							}else{
-								$textChar = $char;
-							}
-							if ($char === "\r" && $nextChar === "\n") {
-								// Line over, boundary parsed
-								$currentPacket = [
-									"headers" => [],
-									"body" => "",
-								];
-								$buffer = "";
-								$state = "PARSING_PACKET_HEADERS";
-								$index += 2;
-							}
+			// First, break the raw body up into lines
+			$lines = explode("\r\n", $rawBody);
+
+			$packetBoundaryEntrance = sprintf("--%s", $boundary);
+			$packetBoundaryEndBody = sprintf("--%s--", $boundary);
+
+			// Iterate each line, checking if it is a form boundary
+			// and stop at the form boundary end
+			foreach($lines as $index=>$line){
+				switch($state){
+					case $parseStates['NO_STATE']:
+						if ($line === $packetBoundaryEntrance){
+							$state = $parseStates['EXPECT_HEADERS'];
 						}
-					} else {
-						// Continue to consume
-						$buffer .= $char;
-						++$index;
-					}
-				} elseif ($state === "PARSE_LAST_BOUNDARY") {
-					if ($char === "-") {
-						// Second - hit
-						// Done
 						break;
-					}
-				} elseif ($state === "PARSING_PACKET_HEADERS") {
-					if ($char === ":") {
-						// Finished parsing a header
-						$lastHeaderName = $buffer;
-						$currentPacket['headers'][$lastHeaderName] = "";
-						$buffer = "";
-						++$index;
-					} else {
-						if ($char === "\r" && $nextChar === "\n") {
-							if (empty($buffer)) {
-								// This means a blank line which separates the headers
-								// from the form-data body content
-								$state = "PARSING_PACKET_BODY";
-							} else {
-								// End of header line
-								$currentPacket['headers'][$lastHeaderName] = $buffer;
-								$buffer = "";
+					case $parseStates['EXPECT_HEADERS']:
+						if (!empty($line)){
+							$headerArray = $this->parseHttpHeader(
+								headerLine: $line
+							);
+							$currentPacket['headers'][] = $headerArray;
+						}else{
+							// Done parsing headers
+							$state = $parseStates['EXPECT_BODY'];
+						}
+						break;
+					case $parseStates['EXPECT_BODY']:
+						// If the next line is a form boundary, do not add a \r\n to the line
+						// else, go ahead and add a \r\n to the line to retain the original intention
+						// of the data
+						if ($line === $packetBoundaryEntrance || $line === $packetBoundaryEndBody) {
+							$data[] = $currentPacket;
+							$currentPacket = [
+								"headers"=>[],
+								"body"=>"",
+							];
+							$state = $parseStates['EXPECT_HEADERS'];
+						}else{
+							$nextLine = $lines[$index + 1] ?? "";
+							if ($nextLine === $packetBoundaryEntrance || $nextLine === $packetBoundaryEndBody) {
+								$currentPacket['body'] .= $line;
+							}else {
+								$currentPacket['body'] .= sprintf("%s\r\n", $line);
 							}
-							$index += 2;
-						} else {
-							$buffer .= $char;
-							++$index;
 						}
-					}
-				} elseif ($state === "PARSING_PACKET_BODY") {
-					if ($buffer === "--" . $boundary) {
-						// Swap state, don't clear the buffer
-						// But the body of this packet is done being parsed
-						// Also don't increase the index.
-						$state = "PARSE_BOUNDARY";
-						$data[] = $currentPacket;
-						$lastHeaderName = "";
-					} else {
-						if ($char === "\r" && $nextChar === "\n") {
-							// Append data to current packet body
-							$currentPacket['body'] .= $buffer;
-							$buffer = "";
-							$index += 2;
-						} else {
-							$buffer .= $char;
-							++$index;
-						}
-					}
+						break;
+					default:
+						break;
 				}
 			}
 

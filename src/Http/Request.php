@@ -260,6 +260,7 @@
 
 		/**
 		 * Parses a header into a key value pair
+		 * @deprecated
 		 */
 		private function parseHeaderValue(string $headerValue): array
 		{

@@ -1,14 +1,18 @@
 <?php
 	namespace Nox\Router;
 
+	use Nox\Http\Attributes\ChosenRouteAttribute;
+	use Nox\Http\Interfaces\ArrayLike;
 	use Nox\Http\Request;
 	use Nox\ORM\Abyss;
 	use Nox\RenderEngine\Renderer;
+	use Nox\Router\Attributes\Controller;
 	use Nox\Router\Attributes\Route;
 	use Nox\Router\Attributes\RouteBase;
 	use Nox\Router\Exceptions\InvalidJSON;
 	use Nox\Router\Exceptions\RouteBaseNoMatch;
 	use Nox\Router\Exceptions\RouteMethodMustHaveANonNullReturn;
+	use Nox\Router\Exceptions\StrictControllerMissingExtension;
 	use Nox\Router\Interfaces\RouteAttribute;
 
 	require_once __DIR__ . "/Attributes/Route.php";
@@ -197,18 +201,72 @@
 						innerDirectory: sprintf("%s/%s", $innerDirectory, $controllerFileName),
 					);
 				}else{
-					// The class name _must_ be the file name minus the extension
+					// Steps to find out which classes were defined in the file and if they are controllers
+					// 1) Use get_declared_classes()
+					// 2) Require the controller path
+					// 3) Use get_declared_classes() again, then array_diff() to find which new classes were added
+					// 4) Using a reflection, find out if any of them extend the BaseController
+
+					// Is the iterated file a PHP file?
 					$fileExtension = pathinfo($controllerFileName, PATHINFO_EXTENSION);
 					if ($fileExtension === "php") {
-						$className = pathinfo($controllerFileName, PATHINFO_FILENAME);
+						$currentDefinedClasses = get_declared_classes();
 						require_once $controllerPath;
-						$classReflector = new \ReflectionClass($className);
-						$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
-						$this->routableMethods[] = [
-							new $className(),
-							$controllerMethods,
-							$this->requestPath,
-						];
+						$nowDefinedClasses = get_declared_classes();
+						$newClassNames = array_diff($nowDefinedClasses, $currentDefinedClasses);
+						if (!empty($newClassNames)){
+							foreach($newClassNames as $className) {
+								$isStrictController = false; // When it has the #[Controller] attribute
+								$classReflector = new \ReflectionClass($className);
+								$attributes = $classReflector->getAttributes(
+									name:Controller::class,
+									flags:\ReflectionAttribute::IS_INSTANCEOF,
+								);
+
+								// Check if it has the Controller class
+								if (!empty($attributes)){
+									// It has the Controller attribute
+									$isStrictController = true;
+								}
+
+								$parentClass = $classReflector->getParentClass();
+								if ($isStrictController) {
+									if (
+										$parentClass instanceof \ReflectionClass &&
+										$parentClass->getName() === BaseController::class
+									) {
+										// It's a Controller class
+										$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
+										$this->routableMethods[] = [
+											new $className(),
+											$controllerMethods,
+											$this->requestPath,
+										];
+									} else {
+										// Strictly defined controllers must extend the BaseController
+										throw new StrictControllerMissingExtension(sprintf(
+											"A controller that has the #[%s] attribute must extend the %s class. Your controller class %s is missing this class extension.",
+											Controller::class,
+											BaseController::class,
+											$classReflector->getName(),
+										));
+									}
+								}else{
+									if (
+										$parentClass instanceof \ReflectionClass &&
+										$parentClass->getName() === BaseController::class
+									) {
+										// It's a Controller class, but not a strict controller
+										$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
+										$this->routableMethods[] = [
+											new $className(),
+											$controllerMethods,
+											$this->requestPath,
+										];
+									}
+								}
+							}
+						}
 					}
 				}
 			}
@@ -468,7 +526,7 @@
 						$attrName = $attribute->getName();
 
 						// Check if this attribute name is "Route"
-						if ($attrName === "Nox\\Router\\Attributes\\Route"){
+						if ($attrName === Route::class){
 							$routeAttribute = $attribute->newInstance();
 
 							// Check if the first argument (request method arg)
@@ -489,6 +547,10 @@
 										foreach ($matches as $name=>$match){
 											if (is_string($name)){
 												if (isset($match[0])){
+													// Define the matched parameter into the BaseController::$requestParameters
+													BaseController::$requestParameters[$name] = $match[0];
+
+													// TODO Deprecate/Remove this
 													$_GET[$name] = $match[0];
 												}
 											}
@@ -518,9 +580,11 @@
 						$passedAttributes = 0;
 
 						foreach ($attributes as $attribute){
-							/** @var RouteAttribute $attrInstance */
-							$attrInstance = $attribute->newInstance();
-							if ($attrInstance instanceof RouteAttribute){
+							$attributeClass = new \ReflectionClass($attribute->getName());
+							$attributeParentClassName = $attributeClass->getParentClass();
+							if ($attributeParentClassName instanceof \ReflectionClass && $attributeParentClassName->getName() === RouteAttribute::class){
+								/** @var RouteAttribute $attrInstance */
+								$attrInstance = $attribute->newInstance();
 								++$neededToRoute;
 
 								$attributeResponse = $attrInstance->getAttributeResponse();
@@ -567,6 +631,23 @@
 						// If the number of valid RouteAttribute attributes equals the number
 						// found on this route method, then invoke this route controller
 						if ($passedAttributes === $neededToRoute){
+
+							/**
+							 * Check any Attributes that extend the internal Nox attribute ChosenRouteAttribute
+							 * which are attributes that should only run for chosen routes - as they can affect the
+							 * response.
+							 * @since 1.5.0
+							 */
+							foreach($attributes as $attribute){
+								$attributeClass = new \ReflectionClass($attribute->getName());
+								$attributeParentClassName = $attributeClass->getParentClass();
+								if ($attributeParentClassName instanceof \ReflectionClass) {
+									if ($attributeParentClassName->getName() === ChosenRouteAttribute::class) {
+										$attribute->newInstance();
+									}
+								}
+							}
+
 							$routeReturn = $routableMethod->invoke($classInstance);
 							if ($routeReturn === null){
 								// A route must have a return type, otherwise
@@ -580,6 +661,20 @@
 									)
 								);
 							}else{
+
+								// Check if the routeReturn is an object that implements the ArrayLike interface
+								// If so, convert it to an array
+								if (is_object($routeReturn)){
+									if ($routeReturn instanceof ArrayLike){
+										$routeReturn = $routeReturn->toArray();
+									}
+								}
+
+								// Check if arrays should be output as JSON
+								if (is_array($routeReturn) && BaseController::$outputArraysAsJSON){
+									return json_encode($routeReturn);
+								}
+
 								return $routeReturn;
 							}
 						}
@@ -650,6 +745,10 @@
 							foreach ($matches as $name=>$match){
 								if (is_string($name)){
 									if (isset($match[0])){
+										// Define the matched parameter into the BaseController::$requestParameters
+										BaseController::$requestParameters[$name] = $match[0];
+
+										// TODO Deprecate/Remove this
 										$_GET[$name] = $match[0];
 									}
 								}

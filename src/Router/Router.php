@@ -197,18 +197,36 @@
 						innerDirectory: sprintf("%s/%s", $innerDirectory, $controllerFileName),
 					);
 				}else{
-					// The class name _must_ be the file name minus the extension
+					// Steps to find out which classes were defined in the file and if they are controllers
+					// 1) Use get_declared_classes()
+					// 2) Require the controller path
+					// 3) Use get_declared_classes() again, then array_diff() to find which new classes were added
+					// 4) Using a reflection, find out if any of them extend the BaseController
+
+					// Is the iterated file a PHP file?
 					$fileExtension = pathinfo($controllerFileName, PATHINFO_EXTENSION);
 					if ($fileExtension === "php") {
-						$className = pathinfo($controllerFileName, PATHINFO_FILENAME);
+						$currentDefinedClasses = get_declared_classes();
 						require_once $controllerPath;
-						$classReflector = new \ReflectionClass($className);
-						$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
-						$this->routableMethods[] = [
-							new $className(),
-							$controllerMethods,
-							$this->requestPath,
-						];
+						$nowDefinedClasses = get_declared_classes();
+						$newClassNames = array_diff($nowDefinedClasses, $currentDefinedClasses);
+						if (!empty($newClassNames)){
+							foreach($newClassNames as $className) {
+								$classReflector = new \ReflectionClass($className);
+								$parentClass = $classReflector->getParentClass();
+								if ($parentClass instanceof \ReflectionClass){
+									if ($parentClass->getName() === BaseController::class){
+										// It's a Controller class
+										$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
+										$this->routableMethods[] = [
+											new $className(),
+											$controllerMethods,
+											$this->requestPath,
+										];
+									}
+								}
+							}
+						}
 					}
 				}
 			}

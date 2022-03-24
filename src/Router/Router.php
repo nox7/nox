@@ -602,6 +602,20 @@
 									)
 								);
 							}else{
+
+								// Check if the routeReturn is an object that implements the ArrayLike interface
+								// If so, convert it to an array
+								if (is_object($routeReturn)){
+									if ($routeReturn instanceof ArrayLike){
+										$routeReturn = $routeReturn->toArray();
+									}
+								}
+
+								// Check if arrays should be output as JSON
+								if (is_array($routeReturn) && BaseController::$outputArraysAsJSON){
+									return json_encode($routeReturn);
+								}
+
 								return $routeReturn;
 							}
 						}

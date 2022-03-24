@@ -507,6 +507,10 @@
 										foreach ($matches as $name=>$match){
 											if (is_string($name)){
 												if (isset($match[0])){
+													// Define the matched parameter into the BaseController::$requestParameters
+													BaseController::$requestParameters[$name] = $match[0];
+
+													// TODO Deprecate/Remove this
 													$_GET[$name] = $match[0];
 												}
 											}
@@ -668,6 +672,10 @@
 							foreach ($matches as $name=>$match){
 								if (is_string($name)){
 									if (isset($match[0])){
+										// Define the matched parameter into the BaseController::$requestParameters
+										BaseController::$requestParameters[$name] = $match[0];
+
+										// TODO Deprecate/Remove this
 										$_GET[$name] = $match[0];
 									}
 								}

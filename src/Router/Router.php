@@ -486,7 +486,7 @@
 						$attrName = $attribute->getName();
 
 						// Check if this attribute name is "Route"
-						if ($attrName === "Nox\\Router\\Attributes\\Route"){
+						if ($attrName === Route::class){
 							$routeAttribute = $attribute->newInstance();
 
 							// Check if the first argument (request method arg)

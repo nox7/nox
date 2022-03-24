@@ -6,11 +6,13 @@
 	use Nox\Http\Request;
 	use Nox\ORM\Abyss;
 	use Nox\RenderEngine\Renderer;
+	use Nox\Router\Attributes\Controller;
 	use Nox\Router\Attributes\Route;
 	use Nox\Router\Attributes\RouteBase;
 	use Nox\Router\Exceptions\InvalidJSON;
 	use Nox\Router\Exceptions\RouteBaseNoMatch;
 	use Nox\Router\Exceptions\RouteMethodMustHaveANonNullReturn;
+	use Nox\Router\Exceptions\StrictControllerMissingExtension;
 	use Nox\Router\Interfaces\RouteAttribute;
 
 	require_once __DIR__ . "/Attributes/Route.php";
@@ -214,11 +216,47 @@
 						$newClassNames = array_diff($nowDefinedClasses, $currentDefinedClasses);
 						if (!empty($newClassNames)){
 							foreach($newClassNames as $className) {
+								$isStrictController = false; // When it has the #[Controller] attribute
 								$classReflector = new \ReflectionClass($className);
+								$attributes = $classReflector->getAttributes(
+									name:Controller::class,
+									flags:\ReflectionAttribute::IS_INSTANCEOF,
+								);
+
+								// Check if it has the Controller class
+								if (!empty($attributes)){
+									// It has the Controller attribute
+									$isStrictController = true;
+								}
+
 								$parentClass = $classReflector->getParentClass();
-								if ($parentClass instanceof \ReflectionClass){
-									if ($parentClass->getName() === BaseController::class){
+								if ($isStrictController) {
+									if (
+										$parentClass instanceof \ReflectionClass &&
+										$parentClass->getName() === BaseController::class
+									) {
 										// It's a Controller class
+										$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
+										$this->routableMethods[] = [
+											new $className(),
+											$controllerMethods,
+											$this->requestPath,
+										];
+									} else {
+										// Strictly defined controllers must extend the BaseController
+										throw new StrictControllerMissingExtension(sprintf(
+											"A controller that has the #[%s] attribute must extend the %s class. Your controller class %s is missing this class extension.",
+											Controller::class,
+											BaseController::class,
+											$classReflector->getName(),
+										));
+									}
+								}else{
+									if (
+										$parentClass instanceof \ReflectionClass &&
+										$parentClass->getName() === BaseController::class
+									) {
+										// It's a Controller class, but not a strict controller
 										$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
 										$this->routableMethods[] = [
 											new $className(),

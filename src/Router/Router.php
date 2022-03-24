@@ -1,6 +1,8 @@
 <?php
 	namespace Nox\Router;
 
+	use Nox\Http\Attributes\ChosenRouteAttribute;
+	use Nox\Http\Interfaces\ArrayLike;
 	use Nox\Http\Request;
 	use Nox\ORM\Abyss;
 	use Nox\RenderEngine\Renderer;
@@ -540,9 +542,11 @@
 						$passedAttributes = 0;
 
 						foreach ($attributes as $attribute){
-							/** @var RouteAttribute $attrInstance */
-							$attrInstance = $attribute->newInstance();
-							if ($attrInstance instanceof RouteAttribute){
+							$attributeClass = new \ReflectionClass($attribute->getName());
+							$attributeParentClassName = $attributeClass->getParentClass();
+							if ($attributeParentClassName instanceof \ReflectionClass && $attributeParentClassName->getName() === RouteAttribute::class){
+								/** @var RouteAttribute $attrInstance */
+								$attrInstance = $attribute->newInstance();
 								++$neededToRoute;
 
 								$attributeResponse = $attrInstance->getAttributeResponse();

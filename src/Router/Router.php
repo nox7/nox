@@ -589,6 +589,23 @@
 						// If the number of valid RouteAttribute attributes equals the number
 						// found on this route method, then invoke this route controller
 						if ($passedAttributes === $neededToRoute){
+
+							/**
+							 * Check any Attributes that extend the internal Nox attribute ChosenRouteAttribute
+							 * which are attributes that should only run for chosen routes - as they can affect the
+							 * response.
+							 * @since 1.5.0
+							 */
+							foreach($attributes as $attribute){
+								$attributeClass = new \ReflectionClass($attribute->getName());
+								$attributeParentClassName = $attributeClass->getParentClass();
+								if ($attributeParentClassName instanceof \ReflectionClass) {
+									if ($attributeParentClassName->getName() === ChosenRouteAttribute::class) {
+										$attribute->newInstance();
+									}
+								}
+							}
+
 							$routeReturn = $routableMethod->invoke($classInstance);
 							if ($routeReturn === null){
 								// A route must have a return type, otherwise

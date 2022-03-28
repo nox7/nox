@@ -125,7 +125,7 @@
 		}
 
 		/**
-		 * Parses multipart/form-data
+		 * Parses multipart/form-data and application/json
 		 */
 		public function processRequestBody(): array
 		{
@@ -149,6 +149,16 @@
 								}
 							}
 						}
+					}
+				}
+			}else{
+				// Check if JSON
+				if (substr($contentType,0, 16) === "application/json"){
+					$formData = json_decode(json: file_get_contents("php://input"), associative: true);
+					if (json_last_error() !== JSON_ERROR_NONE){
+						// Kill everything
+						http_response_code(500);
+						exit(sprintf("JSON request body is invalid json. Error: %s", json_last_error_msg()));
 					}
 				}
 			}

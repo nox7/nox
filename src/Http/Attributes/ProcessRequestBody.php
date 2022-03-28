@@ -18,7 +18,7 @@
 			// Because php://input is blank if this is a POST request that PHP already handled.
 			if (strtolower($_SERVER['REQUEST_METHOD']) === "post" && !empty($_POST)){
 				BaseController::$requestPayload = &$_POST;
-			}else {
+			}else{
 				$request = new Request();
 				BaseController::$requestPayload = $request->processRequestBody();
 			}

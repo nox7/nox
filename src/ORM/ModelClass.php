@@ -75,7 +75,7 @@
 			$whereClause = "";
 			$preparedStatementBindFlags = "";
 			$boundValues = [];
-			if ($columnQuery !== null){
+			if ($columnQuery !== null && !empty($columnQuery->whereClauses)){
 				list($whereClause,$preparedStatementBindFlags, $boundValues) = $abyss->buildWhereClause($model, $columnQuery);
 			}
 

@@ -278,7 +278,7 @@
 			// Build the WHERE clause
 			$preparedBindDataTypes = "";
 			$boundValues = [];
-			if ($columnQuery !== null) {
+			if ($columnQuery !== null && !empty($columnQuery->whereClauses)) {
 				list($whereClause, $preparedBindDataTypes, $boundValues) = $this->buildWhereClause($model, $columnQuery);
 			}
 

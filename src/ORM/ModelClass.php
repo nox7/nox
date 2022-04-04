@@ -85,7 +85,7 @@
 				$whereClause,
 			);
 			$statement = $abyss->getConnection()->prepare($query);
-			if ($columnQuery !== null) {
+			if ($columnQuery !== null && !empty($columnQuery->whereClauses)) {
 				$statement->bind_param($preparedStatementBindFlags, ...$boundValues);
 			}
 			$statement->execute();

@@ -9,6 +9,19 @@
 	class ModelClass implements ModelInstance{
 
 		/**
+		 * @param string $propertyName
+		 * @return string
+		 * @throws Exceptions\NoColumnWithPropertyName
+		 */
+		public static function getColumnNameFromProperty(
+			string $propertyName
+		): string {
+			/** @var MySQLModel $model */
+			$model = static::getModel();
+			return $model::getColumnName($propertyName);
+		}
+
+		/**
 		 * Fetches a ModelClass by the primary key
 		 */
 		public static function fetch(mixed $primaryKey): ModelClass|null{

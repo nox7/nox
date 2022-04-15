@@ -218,12 +218,25 @@
 					$whereClause .= sprintf(" %s ", $clause['clauseJoinWord']);
 				} elseif ($clauseType === "where") {
 					$columnName = $clause['column'];
+					$columnNameFormatted = "";
+
+					// Determine if the columnName should have backticks
+					if (str_starts_with(strtolower($columnName), "coalesce(")){
+						$columnNameFormatted = sprintf("%s", $columnName);
+						$preparedBindDataTypes .= "s"; // Loop below won't find this column name
+					}elseif (str_starts_with(strtolower($columnName), "concat(")){
+						$columnNameFormatted = sprintf("%s", $columnName);
+						$preparedBindDataTypes .= "s"; // Loop below won't find this column name
+					}else{
+						$columnNameFormatted = sprintf("`%s`", $columnName);
+					}
+
 					$isRaw = $clause['raw'];
 					$condition = trim(strtolower($clause['condition']));
 					$value = $clause['value'];
 
 					if ($isRaw){
-						$whereClause .= sprintf("`%s` %s %s", $columnName, $condition, $value);
+						$whereClause .= sprintf("`%s` %s %s", $columnNameFormatted, $condition, $value);
 					}else {
 						if (
 							$condition !== "is" &&
@@ -242,10 +255,10 @@
 							}
 
 							$boundValues[] = $value;
-							$whereClause .= sprintf("`%s` %s ?", $columnName, $condition);
+							$whereClause .= sprintf("%s %s ?", $columnNameFormatted, $condition);
 						} else {
 							// IS, IS NOT, IN, and NOT IN
-							$whereClause .= sprintf("`%s` %s %s", $columnName, $condition, $value);
+							$whereClause .= sprintf("%s %s %s", $columnNameFormatted, $condition, $value);
 						}
 					}
 				}

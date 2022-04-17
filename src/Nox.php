@@ -28,8 +28,14 @@
 		private array $staticDirectorySettings = [];
 
 		public function __construct(){
-			$requestPath = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-			$requestMethod = $_SERVER['REQUEST_METHOD'];
+			if (php_sapi_name() !== "cli") {
+				$requestPath = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+				$requestMethod = $_SERVER['REQUEST_METHOD'];
+			}else{
+				// CLI, command line. Spoof them for now
+				$requestPath = "";
+				$requestMethod = "";
+			}
 
 			$this->supportedMimeTypes = new MimeTypes();
 			$this->router = new Router(

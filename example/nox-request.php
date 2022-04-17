@@ -3,12 +3,14 @@
 	use Nox\Nox;
 	use Nox\ORM\Abyss;
 	use Nox\ORM\DatabaseCredentials;
+	use Nox\Router\BaseController;
 	use Nox\Router\Exceptions\NoMatchingRoute;
 
 	require_once __DIR__ . "/../vendor/autoload.php";
 	require_once __DIR__ . "/nox-env.php";
 
 	$nox = new Nox();
+	BaseController::$noxInstance = $nox;
 
 	// Set a static file serving directory
 	$nox->addStaticDirectory(

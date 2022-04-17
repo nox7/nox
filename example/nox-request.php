@@ -35,6 +35,13 @@
 
 	// Mime caches
 	$nox->addCacheTimeForMime("image/png", 86400 * 60);
+	$nox->addCacheTimeForMime("image/jpeg", 86400 * 60);
+	$nox->addCacheTimeForMime("text/css", 86400 * 60);
+	$nox->addCacheTimeForMime("text/plain", 86400 * 60);
+	$nox->addCacheTimeForMime("text/javascript", 86400 * 60);
+	$nox->addCacheTimeForMime("text/gif", 86400 * 60);
+	$nox->addCacheTimeForMime("text/svg", 86400 * 60);
+	$nox->addCacheTimeForMime("image/webp", 86400 * 60);
 
 	// Process static files before anything else, to keep static file serving fast
 	$nox->router->processRequestAsStaticFile();

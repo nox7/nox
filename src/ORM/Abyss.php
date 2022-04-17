@@ -2,6 +2,10 @@
 
 	namespace Nox\ORM;
 
+	use Exception;
+	use mysqli;
+	use mysqli_sql_exception;
+	use Nox\ORM\Exceptions\MissingDatabaseCredentials;
 	use Nox\ORM\Exceptions\NoPrimaryKey;
 	use Nox\ORM\Exceptions\ObjectMissingModelProperty;
 	use Nox\ORM\Interfaces\ModelInstance;
@@ -9,6 +13,8 @@
 	use Nox\ORM\MySQLDataTypes\Blob;
 	use Nox\ORM\MySQLDataTypes\DataType;
 	use Nox\ORM\MySQLDataTypes\Text;
+	use ReflectionClass;
+	use ReflectionException;
 
 	require_once __DIR__ . "/Exceptions/ObjectMissingModelProperty.php";
 	require_once __DIR__ . "/Exceptions/NoPrimaryKey.php";
@@ -24,11 +30,6 @@
 		];
 
 		/**
-		 * The directory housing MySQL table models
-		 */
-		public static ?string $modelsDirectory = null;
-
-		/**
 		 * The encoding to set the NAMES to
 		 */
 		public static string $characterEncoding = "utf8mb4";
@@ -38,77 +39,90 @@
 		 */
 		public static string $collation = "utf8mb4_unicode_ci";
 
+		/** @var DatabaseCredentials[] */
+		private static array $databaseCredentials = [];
+
+		/** @var mysqli[] */
+		private static array $connections = [];
+
 		/**
 		 * The current MySQLi resource being used
 		 */
-		private static \mysqli $mysqli;
+		private mysqli $currentConnection;
 
 		/**
-		 * Loads the configuration files from a directory needed for the ORM
-		 * when it is used without the Nox Router (such as a CLI script)
+		 * Adds the credentials to Abyss and creates a MySQLi connection to the database, then stores it
+		 * in a static cache or later use. Additionally, runs a SET NAMES %s COLLATE %s query to set
+		 * the NAMES and COLLATE to the correlating static settings of Abyss.
+		 * @param DatabaseCredentials $credentials
+		 * @return void
+		 * @throws mysqli_sql_exception
 		 */
-		public static function loadConfig(string $fromDirectory): void{
-			// Fetch the nox.json
-			$noxJson = file_get_contents($fromDirectory . "/nox.json");
-			$noxConfig = json_decode($noxJson, true);
+		public static function addCredentials(DatabaseCredentials $credentials){
+			if (self::getCredentials($credentials->database) === null) {
+				mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT); // Set MySQLi to throw exceptions
 
-			if (isset($noxConfig['mysql-models-directory']) && !empty($noxConfig['mysql-models-directory'])){
-				self::$modelsDirectory = $fromDirectory . $noxConfig['mysql-models-directory'];
+				self::$databaseCredentials[$credentials->database] = $credentials;
+
+				$mysqliConnection = new mysqli(
+					hostname: $credentials->host,
+					username: $credentials->username,
+					password: $credentials->password,
+					database: $credentials->database,
+					port: $credentials->port,
+				);
+
+				// Set the NAMES of the connection
+				$mysqliConnection->query(
+					sprintf(
+						"SET NAMES %s COLLATE %s",
+						self::$characterEncoding,
+						self::$collation,
+					),
+				);
+
+				self::$connections[$credentials->database] = $mysqliConnection;
 			}
-
-			/**
-			 * Check if the NoxEnv is loaded
-			 */
-			if (!class_exists("NoxEnv")){
-				require_once $fromDirectory . "/nox-env.php";
-			}
-
 		}
 
-		public function __construct(){
+		public static function getCredentials(string $databaseName): DatabaseCredentials | null{
+			if (array_key_exists($databaseName, self::$databaseCredentials)) {
+				return self::$databaseCredentials[$databaseName];
+			}else{
+				return null;
+			}
+		}
 
-			// Check if the models directory is set
-			// If not, then this is probably being CLI'd
-			// and needs to be loaded in
+		public function __construct(){}
 
-			if (!isset(self::$mysqli)) {
-				mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT); // Set MySQLi to throw exceptions
-				if (!isset(self::$mysqli)) {
-					try {
-						self::$mysqli = new \mysqli(
-							\NoxEnv::MYSQL_HOST,
-							\NoxEnv::MYSQL_USERNAME,
-							\NoxEnv::MYSQL_PASSWORD,
-							\NoxEnv::MYSQL_DB_NAME,
-							\NoxEnv::MYSQL_PORT
-						);
-					} catch (\mysqli_sql_exception $e) {
-						// Rethrow it
-						throw $e;
-					}
-
-					self::$mysqli->query(
-						sprintf(
-							"SET NAMES %s COLLATE %s",
-							self::$characterEncoding,
-							self::$collation,
-						),
-					);
+		/**
+		 * @throws MissingDatabaseCredentials
+		 * @throws mysqli_sql_exception
+		 * @throws Exception
+		 */
+		public function getConnectionToDatabase(string $databaseName): mysqli{
+			if (array_key_exists($databaseName, self::$connections)){
+				return self::$connections[$databaseName];
+			}else{
+				// No existing connection, create one if the credentials are available
+				$credentials = self::getCredentials($databaseName);
+				if ($credentials === null){
+					throw new MissingDatabaseCredentials("Missing DatabaseCredentials object for database {$databaseName}. Call Abyss::addCredentials() with an instance of DatabaseCredentials to add the missing credentials.");
+				}else{
+					// Just missing the connection? Should never happen
+					throw new Exception("Abyss has the credentials for {$databaseName} but no connection. Please make sure the credentials were added using Abyss::addCredentials().");
 				}
 			}
 		}
 
-		public function getConnection(): \mysqli{
-			return self::$mysqli;
-		}
-
 		/**
 		 * Instantiates a class that follows a model with possible prefilled values.
+		 * @throws ReflectionException|ObjectMissingModelProperty
 		 */
 		public function instanceFromModel(MySQLModelInterface $model, array $columnValues = []): mixed{
 			$className = $model->getInstanceName();
 			$instance = new $className();
-			$instanceReflection = new \ReflectionClass($instance);
+			$instanceReflection = new ReflectionClass($instance);
 			$instanceProperties = $instanceReflection->getProperties();
 			$instancePropertyNames = [];
 			foreach($instanceProperties as $reflectionProperty){
@@ -144,7 +158,7 @@
 		 */
 		public function prefillPropertiesWithColumnDefaults(ModelInstance $modelClass): void{
 			$model = $modelClass::getModel();
-			$instanceReflection = new \ReflectionClass($modelClass);
+			$instanceReflection = new ReflectionClass($modelClass);
 			$instanceProperties = $instanceReflection->getProperties();
 			$instancePropertyNames = [];
 			foreach($instanceProperties as $reflectionProperty){
@@ -182,7 +196,7 @@
 				}
 			}
 
-			$statement = $this->getConnection()->prepare(
+			$statement = $this->getConnectionToDatabase($model->getDatabaseName())->prepare(
 				sprintf("SELECT * FROM `%s` WHERE `%s` = ?", $model->getName(), $primaryKeyName),
 			);
 			$statement->bind_param($primaryKeyBindFlagType, $keyValue);
@@ -318,7 +332,7 @@
 				$tableName, $whereClause, $orderClause, $limitClause
 			);
 
-			$statement = $this->getConnection()->prepare($query);
+			$statement = $this->getConnectionToDatabase($model->getDatabaseName())->prepare($query);
 			if (!empty($boundValues)) {
 				$statement->bind_param($preparedBindDataTypes, ...$boundValues);;
 			}
@@ -357,9 +371,9 @@
 				$preparedStatementTypeFlags .= $mysqlBoundParameterFlagType;
 				if ($columnValue !== null) {
 					if ($mysqlBoundParameterFlagType === "s" or $mysqlBoundParameterFlagType === "b") {
-						$rawQueryColumnValues[] = sprintf('"%s"', $this->getConnection()->escape_string($columnValue));
+						$rawQueryColumnValues[] = sprintf('"%s"', $this->getConnectionToDatabase($model->getDatabaseName())->escape_string($columnValue));
 					} else {
-						$rawQueryColumnValues[] = sprintf("%s", $this->getConnection()->escape_string((string)$columnValue));
+						$rawQueryColumnValues[] = sprintf("%s", $this->getConnectionToDatabase($model->getDatabaseName())->escape_string((string)$columnValue));
 					}
 				}else{
 					$rawQueryColumnValues[] = "NULL";
@@ -430,15 +444,15 @@
 					$allQueries[] = $builtQuery['query'];
 				}
 
-				$this->getConnection()->multi_query(implode(";", $allQueries));
+				$this->getConnectionToDatabase($model->getDatabaseName())->multi_query(implode(";", $allQueries));
 				$currentModelClassIndex = 0;
 				do {
-					$insertID = $this->getConnection()->insert_id;
+					$insertID = $this->getConnectionToDatabase($model->getDatabaseName())->insert_id;
 					if ($insertID !== 0) {
 						$modelClasses[$currentModelClassIndex]->{$primaryKeyName} = $insertID;
 					}
 					++$currentModelClassIndex;
-				} while ($this->getConnection()->next_result());
+				} while ($this->getConnectionToDatabase($model->getDatabaseName())->next_result());
 			}
 		}
 
@@ -455,7 +469,7 @@
 				usePreparedStatement:true,
 			);
 
-			$statement = $this->getConnection()->prepare($builtQuery['query']);
+			$statement = $this->getConnectionToDatabase($model->getDatabaseName())->prepare($builtQuery['query']);
 			$statement->bind_param(
 				$builtQuery['preparedStatementFlags'],
 				...$builtQuery['columnValues'],
@@ -466,7 +480,7 @@
 			if ($statement->affected_rows > 0){
 				if ($result === false) {
 					$statement->close();
-					return $this->getConnection()->insert_id;
+					return $this->getConnectionToDatabase($model->getDatabaseName())->insert_id;
 				}
 			}
 
@@ -494,7 +508,7 @@
 					}
 				}
 
-				$statement = $this->getConnection()->prepare(
+				$statement = $this->getConnectionToDatabase($model->getDatabaseName())->prepare(
 					sprintf("
 						DELETE FROM `%s`
 						WHERE `%s` = ?
@@ -509,19 +523,17 @@
 
 		/**
 		 * Syncs all models to the database
+		 * @param ReflectionClass[] $modelReflectionClasses
 		 */
-		public function syncModels(): void{
-			$fileNames = array_diff(scandir(self::$modelsDirectory), ['.','..']);
-			foreach ($fileNames as $fileName){
-				$modelPath = sprintf("%s/%s", self::$modelsDirectory, $fileName);
-				$className = pathinfo($fileName, PATHINFO_FILENAME);
-				require_once $modelPath;
-				$classReflection = new $className();
-				$tableName = $classReflection->getName();
-				if ($this->doesTableExist($tableName)){
-					$this->updateExistingTable($classReflection);
+		public function syncModels(array $modelReflectionClasses): void{
+			foreach ($modelReflectionClasses as $modelReflectionClass){
+				/** @var MySQLModelInterface $instanceOfModel */
+				$instanceOfModel = $modelReflectionClass->newInstance();
+				$tableName = $instanceOfModel->getName();
+				if ($this->doesTableExist($instanceOfModel, $tableName)){
+					$this->updateExistingTable($instanceOfModel);
 				}else{
-					$this->createNewTable($classReflection);
+					$this->createNewTable($instanceOfModel);
 				}
 			}
 		}
@@ -557,7 +569,7 @@
 			// Column default value definition
 			if (!$definition->autoIncrement) {
 				// Some data types cannot have a default
-				$reflector = new \ReflectionClass($definition->dataType);
+				$reflector = new ReflectionClass($definition->dataType);
 				if (!in_array($reflector->getName(), self::NO_DEFAULT_DATA_TYPE_CLASS_NAMES)) {
 					if (is_string($definition->defaultValue)) {
 						$mySQLSyntax .= sprintf(" DEFAULT \"%s\"", $definition->defaultValue);
@@ -608,16 +620,16 @@
 		/**
 		 * Checks if a table already exists
 		 */
-		protected function doesTableExist(string $tableName): bool{
-			$result = $this->getConnection()->query(sprintf("SHOW TABLES LIKE \"%s\"", $tableName));
+		protected function doesTableExist(MySQLModelInterface $model, string $tableName): bool{
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf("SHOW TABLES LIKE \"%s\"", $tableName));
 			return $result->num_rows > 0;
 		}
 
 		/**
 		 * Checks if there is a UNIQUE index on a column in a table
 		 */
-		protected function isColumnAUniqueIndex(string $tableName, string $columnName): bool{
-			$result = $this->getConnection()->query(sprintf(
+		protected function isColumnAUniqueIndex(MySQLModelInterface $model, string $tableName, string $columnName): bool{
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf(
 					"SHOW INDEXES FROM `%s` WHERE `Column_name`='%s' AND Non_unique=0 AND Key_name != \"PRIMARY\"",
 					$tableName, $columnName
 				)
@@ -628,8 +640,8 @@
 		/**
 		 * Fetches the name of the index that has the column name
 		 */
-		protected function getUniqueIndexName(string $tableName, string $columnName): string{
-			$result = $this->getConnection()->query(sprintf(
+		protected function getUniqueIndexName(MySQLModelInterface $model, string $tableName, string $columnName): string{
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf(
 					"SHOW INDEXES FROM `%s` WHERE `Column_name`='%s' AND Non_unique=0 AND Key_name != \"PRIMARY\"",
 					$tableName, $columnName
 				)
@@ -641,8 +653,8 @@
 		/**
 		 * Checks if there is a PRIMARY KEY index on a column in a table
 		 */
-		protected function isColumnAPrimaryKey(string $tableName, string $columnName): bool{
-			$result = $this->getConnection()->query(sprintf(
+		protected function isColumnAPrimaryKey(MySQLModelInterface $model, string $tableName, string $columnName): bool{
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf(
 					"SHOW KEYS FROM `%s` WHERE `Column_name`='%s' AND Key_name=\"PRIMARY\"",
 					$tableName, $columnName
 				)
@@ -653,8 +665,8 @@
 		/**
 		 * Checks if a column exists in a table
 		 */
-		protected function doesColumnExistInTable(string $tableName, string $columnName): bool{
-			$result = $this->getConnection()->query(sprintf(
+		protected function doesColumnExistInTable(MySQLModelInterface $model, string $tableName, string $columnName): bool{
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf(
 					"SHOW COLUMNS FROM `%s` WHERE `Field`='%s'",
 					$tableName, $columnName
 				)
@@ -665,9 +677,9 @@
 		/**
 		 * Checks if a column exists in a table
 		 */
-		protected function getAllColumnNamesInTable(string $tableName): array{
+		protected function getAllColumnNamesInTable(MySQLModelInterface $model, string $tableName): array{
 			$columnNames = [];
-			$result = $this->getConnection()->query(sprintf(
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf(
 					"SHOW COLUMNS FROM `%s`",
 					$tableName
 				)
@@ -682,8 +694,8 @@
 		/**
 		 * Checks if a column is set to auto increment
 		 */
-		protected function isColumnSetToAutoIncrement(string $tableName, string $columnName): bool{
-			$result = $this->getConnection()->query(sprintf(
+		protected function isColumnSetToAutoIncrement(MySQLModelInterface $model, string $tableName, string $columnName): bool{
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf(
 					"SHOW COLUMNS FROM `%s` WHERE `Field`='%s' AND `Extra` LIKE \"%auto_increment%\"",
 					$tableName, $columnName
 				)
@@ -694,8 +706,8 @@
 		/**
 		 * Checks if a column is nullable
 		 */
-		protected function isColumnNullable(string $tableName, string $columnName): bool{
-			$result = $this->getConnection()->query(sprintf(
+		protected function isColumnNullable(MySQLModelInterface $model, string $tableName, string $columnName): bool{
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf(
 					"SHOW COLUMNS FROM `%s` WHERE `Field`='%s' AND `Null`=\"YES\"",
 					$tableName, $columnName
 				)
@@ -706,8 +718,8 @@
 		/**
 		 * Checks if a column is set to auto increment
 		 */
-		protected function getColumnDefaultValue(string $tableName, string $columnName): mixed{
-			$result = $this->getConnection()->query(sprintf(
+		protected function getColumnDefaultValue(MySQLModelInterface $model, string $tableName, string $columnName): mixed{
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf(
 					"SHOW COLUMNS FROM `%s` WHERE `Field`='%s'",
 					$tableName, $columnName
 				)
@@ -719,9 +731,9 @@
 		/**
 		 * Checks if a column's data type definition matches the ColumnDefinition provided
 		 */
-		protected function doColumnDefinitionsMatch(string $tableName, string $columnName, ColumnDefinition $columnDefinition): bool{
+		protected function doColumnDefinitionsMatch(MySQLModelInterface $model, string $tableName, string $columnName, ColumnDefinition $columnDefinition): bool{
 			$dataTypeFromColumnDef = $this->getDataTypeDefinitionMySQLSyntax($columnDefinition->dataType);
-			$result = $this->getConnection()->query(sprintf(
+			$result = $this->getConnectionToDatabase($model->getDatabaseName())->query(sprintf(
 					"SHOW COLUMNS FROM `%s` WHERE `Field`='%s' AND `Type`='%s'",
 					$tableName, $columnName, $dataTypeFromColumnDef,
 				)
@@ -747,14 +759,14 @@
 			foreach($model->getColumns() as $columnDefinition){
 				$columnName = $columnDefinition->name;
 				$columnNamesDefinedByModel[] = $columnName;
-				if (!$this->doesColumnExistInTable($tableName, $columnName)){
+				if (!$this->doesColumnExistInTable($model, $tableName, $columnName)){
 					// Create the whole thing
 					$queriesToExecute .= "ALTER TABLE `$tableName` ADD COLUMN " . $this->getColumnDefinitionAsMySQLSyntax($columnDefinition) . ";\n";
 				}else{
 					// Redefine the column to make sure it matches
 					// Since we're altering, we have to check if a PRIMARY KEY needs to be appended
 					$primaryKeyDefinitionString = "";
-					if ($columnDefinition->isPrimary && !$this->isColumnAPrimaryKey($tableName, $columnName)){
+					if ($columnDefinition->isPrimary && !$this->isColumnAPrimaryKey($model, $tableName, $columnName)){
 						$primaryKeyDefinitionString = "PRIMARY KEY";
 					}
 					$queriesToExecute .= sprintf(
@@ -767,10 +779,10 @@
 				}
 
 				// Is it a unique column?
-				if ($this->isColumnAUniqueIndex($tableName, $columnName)){
+				if ($this->isColumnAUniqueIndex($model, $tableName, $columnName)){
 					if (!$columnDefinition->isUnique){
 						// Needs to be dropped
-						$indexName = $this->getUniqueIndexName($tableName, $columnName);
+						$indexName = $this->getUniqueIndexName($model, $tableName, $columnName);
 						$queriesToExecute .= sprintf(
 							"ALTER TABLE `%s` DROP INDEX %s;\n",
 							$tableName, $indexName
@@ -790,7 +802,7 @@
 			}
 
 			// Get all the columns currently in the table
-			$columnNamesInTable = $this->getAllColumnNamesInTable($tableName);
+			$columnNamesInTable = $this->getAllColumnNamesInTable($model, $tableName);
 			foreach($columnNamesInTable as $columnNameInTable){
 				if (!in_array($columnNameInTable, $columnNamesDefinedByModel)){
 					// Drop it
@@ -798,18 +810,18 @@
 				}
 			}
 
-			$this->getConnection()->multi_query($queriesToExecute);
+			$this->getConnectionToDatabase($model->getDatabaseName())->multi_query($queriesToExecute);
 
 			// Remove the queries from the result stack
 			// Otherwise "commands out of sync" will occur
-			while ($result = $this->getConnection()->next_result()){}
+			while ($result = $this->getConnectionToDatabase($model->getDatabaseName())->next_result()){}
 		}
 
 		/**
 		 * Creates a table following a model
 		 */
 		protected function createNewTable(MySQLModelInterface $model): void{
-			$connection = $this->getConnection();
+			$connection = $this->getConnectionToDatabase($model->getDatabaseName());
 			$tableName = $model->getName();
 			$tableCreationSyntax = "CREATE TABLE `$tableName`(";
 			$columnDefinitionSyntax = "";

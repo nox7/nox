@@ -1,12 +1,14 @@
 <?php
 
-	require_once __DIR__ . "/../classes/User.php";
+	namespace Users;
 
-	use \Nox\ORM\ColumnDefinition;
-	use \Nox\ORM\Interfaces\MySQLModelInterface;
-	use \Nox\ORM\MySQLDataTypes\Integer;
-	use \Nox\ORM\MySQLDataTypes\VariableCharacter;
+	use Nox\ORM\Attributes\Model;
+	use Nox\ORM\ColumnDefinition;
+	use Nox\ORM\Interfaces\MySQLModelInterface;
+	use Nox\ORM\MySQLDataTypes\Integer;
+	use Nox\ORM\MySQLDataTypes\VariableCharacter;
 
+	#[Model]
 	class UsersModel implements MySQLModelInterface {
 
 		/**

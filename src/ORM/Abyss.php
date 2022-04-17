@@ -6,7 +6,9 @@
 	use Nox\ORM\Exceptions\ObjectMissingModelProperty;
 	use Nox\ORM\Interfaces\ModelInstance;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
+	use Nox\ORM\MySQLDataTypes\Blob;
 	use Nox\ORM\MySQLDataTypes\DataType;
+	use Nox\ORM\MySQLDataTypes\Text;
 
 	require_once __DIR__ . "/Exceptions/ObjectMissingModelProperty.php";
 	require_once __DIR__ . "/Exceptions/NoPrimaryKey.php";
@@ -17,7 +19,8 @@
 		 * List of classes that cannot have DEFAULT values
 		 */
 		public const NO_DEFAULT_DATA_TYPE_CLASS_NAMES = [
-			"Text","Blob","Geometry","JSON",
+			Text::class,
+			Blob::class,
 		];
 
 		/**
@@ -555,7 +558,7 @@
 			if (!$definition->autoIncrement) {
 				// Some data types cannot have a default
 				$reflector = new \ReflectionClass($definition->dataType);
-				if (!in_array($reflector->getShortName(), self::NO_DEFAULT_DATA_TYPE_CLASS_NAMES)) {
+				if (!in_array($reflector->getName(), self::NO_DEFAULT_DATA_TYPE_CLASS_NAMES)) {
 					if (is_string($definition->defaultValue)) {
 						$mySQLSyntax .= sprintf(" DEFAULT \"%s\"", $definition->defaultValue);
 					} elseif ($definition->defaultValue === null) {

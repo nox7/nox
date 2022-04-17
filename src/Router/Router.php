@@ -230,13 +230,16 @@
 								}
 
 								$parentClass = $classReflector->getParentClass();
-								if ($isStrictController) {
+								// Check if it has the Controller attribute
+								if (!empty($controllerAttributes)) {
+									$parentClass = $classReflector->getParentClass();
+									// Verify it extends from the BaseController
 									if (
 										$parentClass instanceof \ReflectionClass &&
 										$parentClass->getName() === BaseController::class
 									) {
 										// It's a Controller class
-										$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
+										$controllerMethods = $classReflector->getMethods(ReflectionMethod::IS_PUBLIC);
 										$this->routableMethods[] = [
 											new $className(),
 											$controllerMethods,
@@ -250,19 +253,6 @@
 											BaseController::class,
 											$classReflector->getName(),
 										));
-									}
-								}else{
-									if (
-										$parentClass instanceof \ReflectionClass &&
-										$parentClass->getName() === BaseController::class
-									) {
-										// It's a Controller class, but not a strict controller
-										$controllerMethods = $classReflector->getMethods(\ReflectionMethod::IS_PUBLIC);
-										$this->routableMethods[] = [
-											new $className(),
-											$controllerMethods,
-											$this->requestPath,
-										];
 									}
 								}
 							}

@@ -12,6 +12,11 @@
 	class UsersModel implements MySQLModelInterface {
 
 		/**
+		 * The name of the database this table belongs to
+		 */
+		private string $mysqlDatabaseName = "test";
+
+		/**
 		 * The name of this Model in the MySQL database as a table
 		 */
 		private string $mysqlTableName = "users";
@@ -20,6 +25,10 @@
 		 * The string name of the class this model represents and can instantiate
 		 */
 		private string $representingClassName = User::class;
+
+		public function getDatabaseName(): string{
+			return $this->mysqlDatabaseName;
+		}
 
 		public function getName(): string{
 			return $this->mysqlTableName;

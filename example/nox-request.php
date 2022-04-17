@@ -62,7 +62,3 @@
 		$nox->router->requestPath = "/404";
 		$nox->router->processRoutableRequest();
 	}
-
-	// Load the Abyss ORM configuration
-	// Comment this out to disable using Abyss and require a MySQL connection
-	// Abyss::loadConfig(__DIR__);

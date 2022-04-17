@@ -1,9 +1,0 @@
-{
-  "static-directory": "/static",
-  "layouts-directory": "/layouts",
-  "views-directory": "/views",
-  "controllers-directory": "/controllers",
-  "mysql-models-directory": "/models",
-
-  "404-route": "/404"
-}

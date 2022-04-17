@@ -156,6 +156,7 @@
 		 * Loads the MVC controller classes
 		 * from the controllers folder
 		 * @throws \ReflectionException
+		 * @throws ControllerMissingExtension
 		 */
 		public function loadMVCControllers(
 			string $innerDirectory = ""
@@ -246,8 +247,7 @@
 											$this->requestPath,
 										];
 									} else {
-										// Strictly defined controllers must extend the BaseController
-										throw new StrictControllerMissingExtension(sprintf(
+										throw new ControllerMissingExtension(sprintf(
 											"A controller that has the #[%s] attribute must extend the %s class. Your controller class %s is missing this class extension.",
 											Controller::class,
 											BaseController::class,

@@ -7,7 +7,6 @@
 		 * Recursively deletes a directory, all subfolder, and all files.
 		 */
 		public static function recursivelyDeleteDirectory(string $directoryPath): void{
-			$contents = array_diff(scandir($directoryPath), ['.', '..']);
 			$dir = opendir($directoryPath);
 			while(false !== ( $file = readdir($dir)) ) {
 				if (( $file != '.' ) && ( $file != '..' )) {
@@ -21,6 +20,29 @@
 			}
 			closedir($dir);
 			rmdir($directoryPath);
+		}
+
+		/**
+		 * Recursively fetches a directory's files and any descendant folder files
+		 */
+		public static function recursivelyFetchAllFileNames(
+			string $parentDirectory,
+			array &$arrayToAddTo,
+		): array{
+			$dir = opendir($parentDirectory);
+			while(false !== ( $file = readdir($dir)) ) {
+				if (( $file != '.' ) && ( $file != '..' )) {
+					$fullPath = $parentDirectory . '/' . $file;
+					if (is_dir($fullPath)) {
+						self::recursivelyFetchAllFileNames($fullPath, $arrayToAddTo);
+					}else{
+						$arrayToAddTo[] = $fullPath;
+					}
+				}
+			}
+
+			closedir($dir);
+			return $arrayToAddTo;
 		}
 
 		/**
@@ -86,7 +108,7 @@
 		}
 
 		/**
-		 * In case of coping a directory inside itself, there is a need to hash check the directory otherwise and infinite loop of copying is generated
+		 * In case of copying a directory inside itself, there is a need to hash check the directory otherwise and infinite loop of copying is generated
 		 */
 		public static function hashDirectory(string $directory): string{
 			if (!is_dir($directory)){

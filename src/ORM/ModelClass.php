@@ -2,11 +2,14 @@
 
 	namespace Nox\ORM;
 
+	use Nox\ORM\Exceptions\NoColumnWithPropertyName;
 	use Nox\ORM\Exceptions\NoPrimaryKey;
 	use \Nox\ORM\Interfaces\ModelInstance;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
 
 	class ModelClass implements ModelInstance{
+
+		public ModelInstance $childInstance;
 
 		/**
 		 * @param string $propertyName
@@ -123,6 +126,7 @@
 		public function __construct(ModelInstance $modelClass){
 			$abyss = new Abyss();
 			$abyss->prefillPropertiesWithColumnDefaults($modelClass);
+			$this->childInstance = $modelClass;
 		}
 
 		/**
@@ -130,7 +134,7 @@
 		 * find the name of the primary key, find the class name's representation of it,
 		 * then set the class' primary key property value.
 		 */
-		public function save():void{
+		public function save(): void{
 			$abyss = new Abyss();
 			$rowID = $abyss->saveOrCreate($this);
 			if ($rowID !== null){
@@ -148,6 +152,26 @@
 		public function delete():void{
 			$abyss = new Abyss;
 			$abyss->deleteRowByPrimaryKey($this);
+		}
+
+		/**
+		 * Fetches the MySQL column named from the PHP property defined for this ModelInstance's Model
+		 * @throws NoColumnWithPropertyName
+		 */
+		public function getColumnName(string $propertyName): string{
+			$model = $this->childInstance::getModel();
+
+			/** @var ColumnDefinition[] $columns */
+			$columns = $model->getColumns();
+
+			foreach($columns as $column){
+				if ($column->classPropertyName === $propertyName){
+					return $column->name;
+				}
+			}
+
+			$modelClass = $model::class;
+			throw new NoColumnWithPropertyName("No column with property name {$propertyName} in {$modelClass}.");
 		}
 
 		public static function getModel(): MySQLModelInterface

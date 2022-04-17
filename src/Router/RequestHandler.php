@@ -52,7 +52,7 @@
 				}
 			}
 
-			return $this->router->route($this);
+			return $this->router->routeCurrentRequest($this);
 		}
 
 		/**

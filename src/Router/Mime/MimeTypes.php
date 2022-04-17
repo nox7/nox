@@ -1,6 +1,6 @@
 <?php
 
-	namespace Nox\Router;
+	namespace Nox\Router\Mime;
 
 	class MimeTypes{
 

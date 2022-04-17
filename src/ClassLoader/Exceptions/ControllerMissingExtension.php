@@ -1,5 +1,5 @@
 <?php
 
-	namespace Nox\Router\Exceptions;
+	namespace Nox\ClassLoader\Exceptions;
 
 	class ControllerMissingExtension extends \Exception{}

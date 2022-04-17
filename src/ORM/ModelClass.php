@@ -4,7 +4,7 @@
 
 	use Nox\ORM\Exceptions\NoColumnWithPropertyName;
 	use Nox\ORM\Exceptions\NoPrimaryKey;
-	use \Nox\ORM\Interfaces\ModelInstance;
+	use Nox\ORM\Interfaces\ModelInstance;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
 
 	class ModelClass implements ModelInstance{
@@ -15,8 +15,8 @@
 		 * Fetches a ModelClass by the primary key
 		 */
 		public static function fetch(mixed $primaryKey): ModelClass|null{
-			$abyss = new Abyss();
 			$thisModel = static::getModel();
+			$abyss = new Abyss();
 			return $abyss->fetchInstanceByModelPrimaryKey(
 				model: $thisModel,
 				keyValue: $primaryKey,
@@ -72,8 +72,8 @@
 		public static function count(
 			ColumnQuery $columnQuery = null,
 		): int {
-			$abyss = new Abyss();
 			$model = static::getModel();
+			$abyss = new Abyss();
 
 			$whereClause = "";
 			$preparedStatementBindFlags = "";
@@ -87,7 +87,7 @@
 				$model->getName(),
 				$whereClause,
 			);
-			$statement = $abyss->getConnection()->prepare($query);
+			$statement = $abyss->getConnectionToDatabase($model->getDatabaseName())->prepare($query);
 			if ($columnQuery !== null && !empty($columnQuery->whereClauses)) {
 				$statement->bind_param($preparedStatementBindFlags, ...$boundValues);
 			}
@@ -99,12 +99,15 @@
 		}
 
 		/**
-		 * Runs a large-scale UPDATE query to save all of the
-		 * ModelClass instances by their primary key
+		 * Runs a large-scale UPDATE query to save all the
+		 * ModelClass instances by their primary key. The model classes provided
+		 * should be homogenous.
 		 */
 		public static function saveAll(array $modelClasses): void{
-			$abyss = new Abyss();
-			$abyss->saveOrCreateAll($modelClasses);
+			if (!empty($modelClasses)) {
+				$abyss = new Abyss();
+				$abyss->saveOrCreateAll($modelClasses);
+			}
 		}
 
 		/**
@@ -137,7 +140,7 @@
 		 * @throws NoPrimaryKey
 		 */
 		public function delete():void{
-			$abyss = new Abyss;
+			$abyss = new Abyss();
 			$abyss->deleteRowByPrimaryKey($this);
 		}
 

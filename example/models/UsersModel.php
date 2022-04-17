@@ -1,5 +1,7 @@
 <?php
 
+	require_once __DIR__ . "/../classes/User.php";
+
 	use \Nox\ORM\ColumnDefinition;
 	use \Nox\ORM\Interfaces\MySQLModelInterface;
 	use \Nox\ORM\MySQLDataTypes\Integer;
@@ -15,7 +17,7 @@
 		/**
 		 * The string name of the class this model represents and can instantiate
 		 */
-		private string $representingClassName = "User";
+		private string $representingClassName = User::class;
 
 		public function getName(): string{
 			return $this->mysqlTableName;

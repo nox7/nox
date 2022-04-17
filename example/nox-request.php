@@ -1,6 +1,8 @@
 <?php
 
 	use Nox\Nox;
+	use Nox\ORM\Abyss;
+	use Nox\ORM\DatabaseCredentials;
 	use Nox\Router\Exceptions\NoMatchingRoute;
 
 	require_once __DIR__ . "/../vendor/autoload.php";
@@ -38,6 +40,17 @@
 	$nox->setViewsDirectory(__DIR__ . "/resources/views");
 	$nox->setLayoutsDirectory(__DIR__ . "/resources/layouts");
 	$nox->setSourceCodeDirectory(__DIR__ . "/src");
+
+	// Setup the Abyss ORM (MySQL ORM)
+	// Comment the Abyss credentials out if you do not need MySQL
+	// Multiple credentials can be added if you have multiple databases/schemas
+	Abyss::addCredentials(new DatabaseCredentials(
+		host: NoxEnv::MYSQL_HOST,
+		username: NoxEnv::MYSQL_USERNAME,
+		password: NoxEnv::MYSQL_PASSWORD,
+		database: NoxEnv::MYSQL_DB_NAME,
+		port: NoxEnv::MYSQL_PORT,
+	));
 
 	// Process the request as a routable request
 	try {

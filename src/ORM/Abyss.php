@@ -581,7 +581,7 @@
 		 * Fetches the primary key from a model, if any
 		 */
 		public function getPrimaryKey(MySQLModelInterface $model): ?string{
-			/** @var\NoxMySQL\ColumnDefinition $columnDefinition */
+			/** @var ColumnDefinition $columnDefinition */
 			foreach($model->getColumns() as $columnDefinition){
 				if ($columnDefinition->isPrimary){
 					return $columnDefinition->name;
@@ -789,7 +789,7 @@
 				$previousColumnNameIterated = $columnName;
 			}
 
-			// Get all of the columns currently in the table
+			// Get all the columns currently in the table
 			$columnNamesInTable = $this->getAllColumnNamesInTable($tableName);
 			foreach($columnNamesInTable as $columnNameInTable){
 				if (!in_array($columnNameInTable, $columnNamesDefinedByModel)){

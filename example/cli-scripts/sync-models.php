@@ -2,6 +2,7 @@
 	require_once __DIR__ . "/../../vendor/autoload.php";
 	require_once __DIR__ . "/../nox-env.php";
 
+	use Nox\ClassLoader\ClassLoader;
 	use Nox\Nox;
 	use Nox\ORM\Abyss;
 	use Nox\ORM\DatabaseCredentials;
@@ -11,7 +12,7 @@
 	$nox->setSourceCodeDirectory(__DIR__ . "/../src");
 
 	// Get the model reflections
-	$modelReflections = \Nox\ClassLoader\ClassLoader::$modelClassReflections;
+	$modelReflections = ClassLoader::$modelClassReflections;
 
 	// Load the credentials for any and all databases used by the models
 	Abyss::addCredentials(new DatabaseCredentials(

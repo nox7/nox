@@ -210,97 +210,89 @@
 		 * An accessible route is determined by the calling HTTP session.
 		 * For example, a user logged in will see different available routes
 		 * returned here than a user that is not logged in (should that route method
-		 * implement an attribute that denies unauthenticated session).
+		 * implement an attribute that denies unauthenticated session). Routes that utilize regular expressions
+		 * are not included here, because it is impossible to tell - from the framework side - all the possible
+		 * ways that regular expression route could lead to a valid page.
 		 */
-		public function getAllAccessibleRouteURIs(
-			bool $includeRegexRoutes = false,
-		): array{
+		public function getAllNonRegExURIs(): array{
 			$availableURIs = [];
 
-			/** @var array $methodData */
-			foreach ($this->routableControllers as $methodData){
-				$classInstance = $methodData[0];
-				$classReflection = new \ReflectionClass($classInstance);
+			foreach ($this->routableControllers as $routableController){
 
 				// Get the route base, if there is one
 				/** @var RouteBase $routeBase */
-				$routeBase = $this->getRouteBaseFromClass($classReflection);
+				$routeBase = $this->getRouteBaseFromClass($routableController->reflectionClass);
 				$baseUri = "";
 				if ($routeBase){
 					if ($routeBase->isRegex === false){
 						$baseUri = $routeBase->uri;
 					}else{
-						if ($routeBase->isRegex && $includeRegexRoutes){
-							$baseUri = $routeBase->uri;
-						}else{
+						// Skip regular expression routes entirely
+						if ($routeBase->isRegex){
 							continue;
 						}
 					}
 				}
 
 				/** @var ReflectionMethod[] $methods */
-				$methods = $methodData[1];
+				$publicControllerReflectionMethods = $routableController->reflectionClass->getMethods(filter: ReflectionMethod::IS_PUBLIC);
 
-				foreach($methods as $method){
+				foreach($publicControllerReflectionMethods as $reflectionMethod){
+					$allURIsForThisControllerMethod = [];
+
 					// Get the attributes (if any) of the method
-					$attributes = $method->getAttributes();
+					$routeAttributes = $reflectionMethod->getAttributes(
+						name: Route::class,
+						flags:ReflectionAttribute::IS_INSTANCEOF,
+					);
 
-					// Variables to keep track of route-affecting attributes
-					// and if they allow the route to pass.
-					$numMethodsToBeApproved = 0;
-					$numMethodsApproved = 0;
-					$thisMethodURI = null;
-					foreach($attributes as $attribute){
-						$routeAttribute = $attribute->newInstance();
-						if ($attribute->getName() === "Nox\\Router\\Attributes\\Route"){
-							/** @var Route $routeAttribute */
-							if ($routeAttribute->isRegex === true && $includeRegexRoutes) {
-								$thisMethodURI = $baseUri . $routeAttribute->uri;
-							}elseif ($routeAttribute->isRegex === false){
-								$thisMethodURI = $baseUri . $routeAttribute->uri;
-							}else{
-								// Skip this method
-								// It's a regex route but includeRegexRoutes is false
-								continue;
-							}
-						}else{
-							if ($routeAttribute instanceof RouteAttribute){
-								++$numMethodsToBeApproved;
-								if ($routeAttribute->getAttributeResponse()->isRouteUsable){
-									++$numMethodsApproved;
-								}
-							}
+					foreach($routeAttributes as $routeAttribute) {
+						/** @var RouteAttribute $routeAttribute */
+						$routeAttribute = $routeAttribute->newInstance();
+						if ($routeAttribute->isRegex === false) {
+							$allURIsForThisControllerMethod[] = $baseUri . $routeAttribute->uri;
+						}
+					}
+
+					// Now check if there are RouteAttribute attribute instances on this method
+					// That would prevent this route from being seen by whatever criteria it has.
+					$routeAttributeAttributes = $reflectionMethod->getAttributes(
+						name: RouteAttribute::class,
+						flags:ReflectionAttribute::IS_INSTANCEOF,
+					);
+					$routeAttributesPassed = 0;
+					foreach($routeAttributeAttributes as $reflectionAttribute){
+						$instanceOfRouteAttribute = $reflectionAttribute->newInstance();
+						if ($instanceOfRouteAttribute->getAttributeResponse()->isRouteUsable){
+							++$routeAttributesPassed;
 						}
 					}
 
 					// Did this route's other methods match to the needed amount to be approved
 					// As in, is this route usable/accessible by the current HTTP session that
 					// calls this function in the first place?
-					if ($numMethodsToBeApproved === $numMethodsApproved){
-						if ($thisMethodURI !== null) {
-							$availableURIs[] = $thisMethodURI;
+					if ($routeAttributesPassed === count($routeAttributeAttributes)){
+						// Add all URIs found here to the total available URIs
+						foreach($allURIsForThisControllerMethod as $uri){
+							$availableURIs[] = $uri;
 						}
 					}
 				}
 			}
 
 			// Now check all the dynamic route methods
-			foreach($this->dynamicRoutes as $dynamicRoute){
-				// Check the onRenderCheck callback
-				if ($dynamicRoute->onRouteCheck !== null) {
-					/** @var DynamicRouteResponse $dynamicRouteResponse */
-					$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call(new BaseController);
-					if (!$dynamicRouteResponse->isRouteUsable) {
-						// Skip this dynamic route
-						continue;
+			foreach($this->dynamicRoutes as $dynamicRoute) {
+				if (!$dynamicRoute->isRegex){
+					// Check the onRenderCheck callback
+					if ($dynamicRoute->onRouteCheck !== null) {
+						/** @var DynamicRouteResponse $dynamicRouteResponse */
+						$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call(new BaseController);
+						if (!$dynamicRouteResponse->isRouteUsable) {
+							// Skip this dynamic route
+							continue;
+						}
 					}
-				}
 
-				if ($dynamicRoute->isRegex){
-					if ($includeRegexRoutes){
-						$availableURIs[] = $dynamicRoute->requestPath;
-					}
-				}else{
 					$availableURIs[] = $dynamicRoute->requestPath;
 				}
 			}

@@ -20,6 +20,7 @@
 
 	// Support static file mime types so the browser can recognize the static files
 	$nox->mapExtensionToMimeType("css", "text/css");
+	$nox->mapExtensionToMimeType("map", "text/plain");
 	$nox->mapExtensionToMimeType("png", "image/png");
 	$nox->mapExtensionToMimeType("jpg", "image/jpeg");
 	$nox->mapExtensionToMimeType("jpeg", "image/jpeg");

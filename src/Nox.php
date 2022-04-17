@@ -6,6 +6,7 @@
 	use Nox\ClassLoader\Exceptions\ControllerMissingExtension;
 	use Nox\ClassLoader\Exceptions\ModelMissingImplementation;
 	use Nox\RenderEngine\Renderer;
+	use Nox\Router\Mime\MimeCache;
 	use Nox\Router\Mime\MimeTypes;
 	use Nox\Router\Router;
 	use Nox\Router\StaticDirectorySetting;
@@ -132,6 +133,13 @@
 			$this->supportedMimeTypes->addMimeType(
 				extension: $fileExtension,
 				contentType:$mimeType,
+			);
+		}
+
+		public function addCacheTimeForMime(string $mimeType, int $cacheSeconds): void{
+			$this->staticFileHandler->cacheConfig[] = new MimeCache(
+				mimeType: $mimeType,
+				cacheSeconds:$cacheSeconds,
 			);
 		}
 	}

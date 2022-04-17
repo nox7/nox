@@ -28,6 +28,9 @@
 	$nox->mapExtensionToMimeType("pdf", "application/pdf");
 	$nox->mapExtensionToMimeType("svg", "image/svg+xml");
 
+	// Mime caches
+	$nox->addCacheTimeForMime("image/png", 86400 * 60);
+
 	// Process static files before anything else, to keep static file serving fast
 	$nox->router->processRequestAsStaticFile();
 

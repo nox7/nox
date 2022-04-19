@@ -469,6 +469,7 @@
 				usePreparedStatement:true,
 			);
 
+			$model = $classInstance::getModel();
 			$statement = $this->getConnectionToDatabase($model->getDatabaseName())->prepare($builtQuery['query']);
 			$statement->bind_param(
 				$builtQuery['preparedStatementFlags'],

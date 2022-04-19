@@ -9,7 +9,7 @@
 
 	class ModelClass implements ModelInstance{
 
-		public ModelInstance $childInstance;
+		private ModelInstance $childInstance;
 
 		/**
 		 * Fetches a ModelClass by the primary key

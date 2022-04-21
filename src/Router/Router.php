@@ -421,8 +421,7 @@
 									// There is a new request path
 									// Rewrite this request
 									$this->requestPath = $attributeResponse->newRequestPath;
-									$this->routeCurrentRequest();
-									exit();
+									return $this->routeCurrentRequest();
 								}else{
 									// A response code was set, but no new request path.
 									// Just return a blank string in this case.
@@ -497,8 +496,7 @@
 									// Instantiate a new request handler now and handle it
 									// A new router must also be created
 									$this->requestPath = $dynamicRouteResponse->newRequestPath;
-									$this->routeCurrentRequest();
-									exit();
+									return $this->routeCurrentRequest();
 								}
 							}else{
 								// Just skip this route

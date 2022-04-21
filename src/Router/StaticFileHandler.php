@@ -35,7 +35,7 @@
 				}else{
 					// This is a setting that serves from root URIs (/). It must be processed last so that
 					// other static directories can have a chance to be served
-					$rootStaticServingSetting = &$staticDirectorySetting;
+					$rootStaticServingSetting = $staticDirectorySetting;
 				}
 			}
 

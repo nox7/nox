@@ -52,7 +52,6 @@
 		 * Attempts to process a request as a static file. Code will stop execution after this call
 		 * if the request is a static file.
 		 * @return void
-		 * @throws Exception
 		 */
 		public function processRequestAsStaticFile(): void{
 			if ($this->requestMethod === "get") {

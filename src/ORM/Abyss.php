@@ -12,6 +12,7 @@
 	use Nox\ORM\Interfaces\MySQLModelInterface;
 	use Nox\ORM\MySQLDataTypes\Blob;
 	use Nox\ORM\MySQLDataTypes\DataType;
+	use Nox\ORM\MySQLDataTypes\MediumText;
 	use Nox\ORM\MySQLDataTypes\Text;
 	use ReflectionClass;
 	use ReflectionException;
@@ -27,6 +28,7 @@
 		public const NO_DEFAULT_DATA_TYPE_CLASS_NAMES = [
 			Text::class,
 			Blob::class,
+			MediumText::class,
 		];
 
 		/**

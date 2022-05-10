@@ -127,7 +127,9 @@
 		public function save(): void{
 			$abyss = new Abyss();
 			$rowID = $abyss->saveOrCreate($this);
-			if ($rowID !== null){
+
+			// 0 Here would indicate a column that doesn't generate an automatically incremented ID
+			if ($rowID !== null && $rowID !== 0){
 				$primaryKeyClassPropertyName = $abyss->getPrimaryKey($this::getModel());
 				if ($primaryKeyClassPropertyName) {
 					$this->$primaryKeyClassPropertyName = $rowID;

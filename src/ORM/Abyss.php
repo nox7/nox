@@ -435,7 +435,8 @@
 		public function saveOrCreateAll(array $modelClasses): void{
 			if (!empty($modelClasses)) {
 				$allQueries = [];
-				$primaryKeyName = $this->getPrimaryKey($modelClasses[0]::getModel());
+				$model = $modelClasses[0]::getModel();
+				$primaryKeyName = $this->getPrimaryKey($model);
 
 				foreach ($modelClasses as $modelClass) {
 					/** @var array{query: string, preparedStatementFlags: array, columnValues: array} $builtQuery */

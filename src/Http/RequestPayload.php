@@ -18,9 +18,10 @@
 
 		/**
 		 * @param string $name
+		 * @return TextPayload
 		 * @throws NoPayloadFound
 		 */
-		public function getTextPayload(string $name): TextPayload | null{
+		public function getTextPayload(string $name): TextPayload{
 			foreach($this->payloadObjects as $payload){
 				if ($payload instanceof TextPayload) {
 					if (strtolower($payload->name) === strtolower($name)) {
@@ -39,9 +40,22 @@
 
 		/**
 		 * @param string $name
+		 * @return TextPayload|null
+		 */
+		public function getTextPayloadNullable(string $name): TextPayload | null{
+			try{
+				return self::getTextPayload($name);
+			}catch(NoPayloadFound){
+				return null;
+			}
+		}
+
+		/**
+		 * @param string $name
+		 * @return FileUploadPayload
 		 * @throws NoPayloadFound
 		 */
-		public function getFileUploadPayload(string $name): FileUploadPayload | null{
+		public function getFileUploadPayload(string $name): FileUploadPayload{
 			foreach($this->payloadObjects as $payload){
 				if ($payload instanceof FileUploadPayload) {
 					if (strtolower($payload->name) === strtolower($name)) {

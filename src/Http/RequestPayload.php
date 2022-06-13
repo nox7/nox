@@ -44,7 +44,7 @@
 		 */
 		public function getTextPayloadNullable(string $name): TextPayload | null{
 			try{
-				return self::getTextPayload($name);
+				return $this->getTextPayload($name);
 			}catch(NoPayloadFound){
 				return null;
 			}

@@ -3,5 +3,5 @@
 
 	class TextPayload extends Payload {
 		public string $name;
-		public string $contents;
+		public string|null $contents;
 	}

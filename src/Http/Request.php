@@ -229,12 +229,19 @@
 						exit(sprintf("JSON request body is invalid json. Error: %s", json_last_error_msg()));
 					}else{
 						// No errors
-						// Turn them all into text payloads
+						// Turn them all into payloads
 						foreach($formData as $key=>$value){
-							$textPayload = new TextPayload();
-							$textPayload->name = $key;
-							$textPayload->value = $value;
-							$requestPayload->pushPayload($textPayload);
+							if (is_array($value)){
+								$arrayPayload = new ArrayPayload();
+								$arrayPayload->name = $key;
+								$arrayPayload->contents = $value;
+								$requestPayload->pushPayload($arrayPayload);
+							}else{
+								$textPayload = new TextPayload();
+								$textPayload->name = $key;
+								$textPayload->contents = $value;
+								$requestPayload->pushPayload($textPayload);
+							}
 						}
 					}
 				}

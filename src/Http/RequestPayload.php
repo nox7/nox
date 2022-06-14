@@ -18,6 +18,28 @@
 
 		/**
 		 * @param string $name
+		 * @return ArrayPayload|null
+		 * @throws NoPayloadFound
+		 */
+		public function getArrayPayload(string $name): ArrayPayload | null{
+			foreach($this->payloadObjects as $payload){
+				if ($payload instanceof ArrayPayload) {
+					if (strtolower($payload->name) === strtolower($name)) {
+						return $payload;
+					}
+				}
+			}
+
+			throw new NoPayloadFound(
+				sprintf(
+					"No array payload found in the request body with the name %s",
+					$name,
+				),
+			);
+		}
+
+		/**
+		 * @param string $name
 		 * @return TextPayload
 		 * @throws NoPayloadFound
 		 */

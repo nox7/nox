@@ -28,7 +28,7 @@
 				foreach($_POST as $key=>$value){
 					$textPayload = new TextPayload();
 					$textPayload->name = $key;
-					$textPayload->value = $value;
+					$textPayload->contents = $value;
 					$requestPayload->pushPayload($textPayload);
 				}
 

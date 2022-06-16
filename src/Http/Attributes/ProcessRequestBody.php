@@ -51,7 +51,6 @@
 					}
 				}
 
-				var_dump($requestPayload);
 				Request::setRequestPayload($requestPayload);
 			}else{
 				$request = new Request();

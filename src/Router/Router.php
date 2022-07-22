@@ -420,6 +420,7 @@
 									// There is a new request path
 									// Rewrite this request
 									$this->requestPath = $attributeResponse->newRequestPath;
+									$this->requestMethod = "get";
 									return $this->routeCurrentRequest();
 								}else{
 									// A response code was set, but no new request path.
@@ -495,6 +496,7 @@
 									// Instantiate a new request handler now and handle it
 									// A new router must also be created
 									$this->requestPath = $dynamicRouteResponse->newRequestPath;
+									$this->requestMethod = "get";
 									return $this->routeCurrentRequest();
 								}
 							}else{

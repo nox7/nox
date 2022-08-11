@@ -1,13 +1,20 @@
 <?php
 
-	require_once __DIR__ . "/../classes/User.php";
+	namespace Users;
 
-	use \Nox\ORM\ColumnDefinition;
-	use \Nox\ORM\Interfaces\MySQLModelInterface;
-	use \Nox\ORM\MySQLDataTypes\Integer;
-	use \Nox\ORM\MySQLDataTypes\VariableCharacter;
+	use Nox\ORM\Attributes\Model;
+	use Nox\ORM\ColumnDefinition;
+	use Nox\ORM\Interfaces\MySQLModelInterface;
+	use Nox\ORM\MySQLDataTypes\Integer;
+	use Nox\ORM\MySQLDataTypes\VariableCharacter;
 
+	#[Model]
 	class UsersModel implements MySQLModelInterface {
+
+		/**
+		 * The name of the database this table belongs to
+		 */
+		private string $mysqlDatabaseName = "test";
 
 		/**
 		 * The name of this Model in the MySQL database as a table
@@ -18,6 +25,10 @@
 		 * The string name of the class this model represents and can instantiate
 		 */
 		private string $representingClassName = User::class;
+
+		public function getDatabaseName(): string{
+			return $this->mysqlDatabaseName;
+		}
 
 		public function getName(): string{
 			return $this->mysqlTableName;

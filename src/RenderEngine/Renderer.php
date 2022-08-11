@@ -6,6 +6,7 @@
 	require_once __DIR__ . "/Parser.php";
 	require_once __DIR__ . "/../Router/ViewSettings.php";
 
+	use Nox\Nox;
 	use Nox\RenderEngine\Exceptions\LayoutDoesNotExist;
 	use Nox\RenderEngine\Exceptions\ParseError;
 	use Nox\RenderEngine\Exceptions\ViewFileDoesNotExist;
@@ -13,8 +14,7 @@
 
 	class Renderer{
 
-		public ?string $fileLocation;
-		public static ?ViewSettings $viewSettings;
+		public static Nox $noxInstance;
 
 		/**
 		 * Retrieves the rendered result of the view file.
@@ -26,7 +26,9 @@
 		 * @throws ViewFileDoesNotExist
 		 */
 		public static function renderView(string $viewFileName, array $viewScope = []): string{
-			$fileLocation = sprintf("%s/%s", self::$viewSettings->viewsFolder, $viewFileName);
+			$viewsFolder = self::$noxInstance->getViewsDirectory();
+			$layoutsFolder = self::$noxInstance->getLayoutsDirectory();
+			$fileLocation = sprintf("%s/%s", $viewsFolder, $viewFileName);
 
 			if (!realpath($fileLocation)){
 				throw new ViewFileDoesNotExist(sprintf("No view file at file path: %s", $fileLocation));
@@ -36,14 +38,14 @@
 			$parser->parse();
 
 			$layoutFileName = $parser->directives['@Layout'];
-			$layoutFilePath = sprintf("%s/%s", self::$viewSettings->layoutsFolder, $layoutFileName);
+			$layoutFilePath = sprintf("%s/%s", $layoutsFolder, $layoutFileName);
 
 			if (!realpath($layoutFilePath)){
 				throw new LayoutDoesNotExist(
 					sprintf(
-						"The layout %s does not exist in the folder %s",
+						"The layout %s does not exist in the directory %s",
 						$layoutFileName,
-						self::$viewSettings->layoutsFolder
+						$layoutsFolder
 					)
 				);
 			}

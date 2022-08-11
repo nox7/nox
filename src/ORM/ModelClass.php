@@ -2,31 +2,21 @@
 
 	namespace Nox\ORM;
 
+	use Nox\ORM\Exceptions\NoColumnWithPropertyName;
 	use Nox\ORM\Exceptions\NoPrimaryKey;
-	use \Nox\ORM\Interfaces\ModelInstance;
+	use Nox\ORM\Interfaces\ModelInstance;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
 
 	class ModelClass implements ModelInstance{
 
-		/**
-		 * @param string $propertyName
-		 * @return string
-		 * @throws Exceptions\NoColumnWithPropertyName
-		 */
-		public static function getColumnNameFromProperty(
-			string $propertyName
-		): string {
-			/** @var MySQLModel $model */
-			$model = static::getModel();
-			return $model::getColumnName($propertyName);
-		}
+		private ModelInstance $childInstance;
 
 		/**
 		 * Fetches a ModelClass by the primary key
 		 */
 		public static function fetch(mixed $primaryKey): ModelClass|null{
-			$abyss = new Abyss();
 			$thisModel = static::getModel();
+			$abyss = new Abyss();
 			return $abyss->fetchInstanceByModelPrimaryKey(
 				model: $thisModel,
 				keyValue: $primaryKey,
@@ -82,8 +72,8 @@
 		public static function count(
 			ColumnQuery $columnQuery = null,
 		): int {
-			$abyss = new Abyss();
 			$model = static::getModel();
+			$abyss = new Abyss();
 
 			$whereClause = "";
 			$preparedStatementBindFlags = "";
@@ -97,7 +87,7 @@
 				$model->getName(),
 				$whereClause,
 			);
-			$statement = $abyss->getConnection()->prepare($query);
+			$statement = $abyss->getConnectionToDatabase($model->getDatabaseName())->prepare($query);
 			if ($columnQuery !== null && !empty($columnQuery->whereClauses)) {
 				$statement->bind_param($preparedStatementBindFlags, ...$boundValues);
 			}
@@ -109,12 +99,15 @@
 		}
 
 		/**
-		 * Runs a large-scale UPDATE query to save all of the
-		 * ModelClass instances by their primary key
+		 * Runs a large-scale UPDATE query to save all the
+		 * ModelClass instances by their primary key. The model classes provided
+		 * should be homogenous.
 		 */
 		public static function saveAll(array $modelClasses): void{
-			$abyss = new Abyss();
-			$abyss->saveOrCreateAll($modelClasses);
+			if (!empty($modelClasses)) {
+				$abyss = new Abyss();
+				$abyss->saveOrCreateAll($modelClasses);
+			}
 		}
 
 		/**
@@ -123,6 +116,7 @@
 		public function __construct(ModelInstance $modelClass){
 			$abyss = new Abyss();
 			$abyss->prefillPropertiesWithColumnDefaults($modelClass);
+			$this->childInstance = $modelClass;
 		}
 
 		/**
@@ -130,10 +124,12 @@
 		 * find the name of the primary key, find the class name's representation of it,
 		 * then set the class' primary key property value.
 		 */
-		public function save():void{
+		public function save(): void{
 			$abyss = new Abyss();
 			$rowID = $abyss->saveOrCreate($this);
-			if ($rowID !== null){
+
+			// 0 Here would indicate a column that doesn't generate an automatically incremented ID
+			if ($rowID !== null && $rowID !== 0){
 				$primaryKeyClassPropertyName = $abyss->getPrimaryKey($this::getModel());
 				if ($primaryKeyClassPropertyName) {
 					$this->$primaryKeyClassPropertyName = $rowID;
@@ -146,8 +142,28 @@
 		 * @throws NoPrimaryKey
 		 */
 		public function delete():void{
-			$abyss = new Abyss;
+			$abyss = new Abyss();
 			$abyss->deleteRowByPrimaryKey($this);
+		}
+
+		/**
+		 * Fetches the MySQL column named from the PHP property defined for this ModelInstance's Model
+		 * @throws NoColumnWithPropertyName
+		 */
+		public function getColumnName(string $propertyName): string{
+			$model = $this->childInstance::getModel();
+
+			/** @var ColumnDefinition[] $columns */
+			$columns = $model->getColumns();
+
+			foreach($columns as $column){
+				if ($column->classPropertyName === $propertyName){
+					return $column->name;
+				}
+			}
+
+			$modelClass = $model::class;
+			throw new NoColumnWithPropertyName("No column with property name {$propertyName} in {$modelClass}.");
 		}
 
 		public static function getModel(): MySQLModelInterface

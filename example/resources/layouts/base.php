@@ -1,3 +1,7 @@
+<?php
+	/** @var string $htmlHead Head contents from the view file */
+	/** @var string $htmlBody Body contents from the view file */
+?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 	<head>

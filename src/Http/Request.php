@@ -2,11 +2,23 @@
 
 	namespace Nox\Http;
 
+	use Nox\ORM\MySQLDataTypes\Text;
+
 	/**
 	 * An abstraction for the request payload
 	 */
 	class Request
 	{
+
+		private static RequestPayload | null $lastProcessedRequestPayload = null;
+
+		public static function getRequestPayload(): RequestPayload | null{
+			return self::$lastProcessedRequestPayload;
+		}
+
+		public static function setRequestPayload(RequestPayload $requestPayload): void{
+			self::$lastProcessedRequestPayload = $requestPayload;
+		}
 
 		/**
 		 * Fetches the raw body of a request
@@ -125,10 +137,31 @@
 		}
 
 		/**
+		 * @param array{headers: array, body: string} $formDataPacket
+		 * @return bool
+		 */
+		private function isPacketFileUpload(array $formDataPacket): bool{
+			/** @var array{name: string, value: string, attributes: array} $header */
+			foreach($formDataPacket['headers'] as $header){
+				if (strtolower($header['name']) === "content-disposition"){
+					/** @var array{name: string, value: string} $attribute */
+					foreach($header['attributes'] as $attribute){
+						if ($attribute['name'] === "filename"){
+							return true;
+						}
+					}
+				}
+			}
+
+			return false;
+		}
+
+		/**
 		 * Parses multipart/form-data and application/json
 		 */
 		public function processRequestBody(): array
 		{
+			$requestPayload = new RequestPayload();
 			$requestMethod = strtolower($_SERVER['REQUEST_METHOD']);
 			$contentType = $_SERVER['CONTENT_TYPE'];
 			$didMatch = preg_match("/multipart\/form-data; boundary=(.+)/", $contentType, $matches);
@@ -138,14 +171,49 @@
 				$parsedFormData = $this->getAllFormDataFromRequest($boundary);
 				/** @var array{headers: array, body: string} $packet */
 				foreach ($parsedFormData as $packet) {
-					/** @var array{name: string, value: string, attributes: array} $header */
-					foreach ($packet['headers'] as $header) {
-						if (strtolower($header['name']) === "content-disposition"){
-							// Fetch the name
-							/** @var array{name: string, value: string} $attribute */
-							foreach($header['attributes'] as $attribute){
-								if ($attribute['name'] === "name"){
-									$formData[$attribute['value']] = $packet['body'];
+
+					// Check if this packet is a file upload or not
+					if ($this->isPacketFileUpload($packet)){
+						// Handle this as a file upload
+						$payloadName = null;
+						$fileUpload = new FileUploadPayload();
+						$fileUpload->contents = $packet['body'];
+						$fileUpload->fileSize = strlen($packet['body']);
+						/** @var array{name: string, value: string, attributes: array} $header */
+						foreach ($packet['headers'] as $header) {
+							if (strtolower($header['name']) === "content-disposition") {
+								/** @var array{name: string, value: string} $attribute */
+								foreach ($header['attributes'] as $attribute) {
+									if ($attribute['name'] === "name") {
+										$payloadName = $attribute['value'];
+									}elseif ($attribute['name'] === "filename"){
+										$fileUpload->fileName = $attribute['value'];
+									}
+								}
+							}elseif (strtolower($header['name']) === "content-type"){
+								$fileUpload->contentType = $header['value'];
+							}
+						}
+
+						if ($payloadName !== null){
+							$fileUpload->name = $payloadName;
+							$formData[$payloadName] = $fileUpload;
+							$requestPayload->pushPayload($fileUpload);
+						}
+					}else {
+						// Handle this as a normal payload
+						/** @var array{name: string, value: string, attributes: array} $header */
+						foreach ($packet['headers'] as $header) {
+							if (strtolower($header['name']) === "content-disposition") {
+								/** @var array{name: string, value: string} $attribute */
+								foreach ($header['attributes'] as $attribute) {
+									if ($attribute['name'] === "name") {
+										$formData[$attribute['value']] = $packet['body'];
+										$textPayload = new TextPayload();
+										$textPayload->name = $attribute['value'];
+										$textPayload->contents = $packet['body'];
+										$requestPayload->pushPayload($textPayload);
+									}
 								}
 							}
 						}
@@ -159,9 +227,27 @@
 						// Kill everything
 						http_response_code(500);
 						exit(sprintf("JSON request body is invalid json. Error: %s", json_last_error_msg()));
+					}else{
+						// No errors
+						// Turn them all into payloads
+						foreach($formData as $key=>$value){
+							if (is_array($value)){
+								$arrayPayload = new ArrayPayload();
+								$arrayPayload->name = $key;
+								$arrayPayload->contents = $value;
+								$requestPayload->pushPayload($arrayPayload);
+							}else{
+								$textPayload = new TextPayload();
+								$textPayload->name = $key;
+								$textPayload->contents = $value;
+								$requestPayload->pushPayload($textPayload);
+							}
+						}
 					}
 				}
 			}
+
+			self::setRequestPayload($requestPayload);
 
 			return $formData;
 		}

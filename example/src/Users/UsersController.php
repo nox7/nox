@@ -1,7 +1,6 @@
 <?php
 
-	// No need to require the autoload in the Controller.
-	// The controller has the scope of the request.php file
+	namespace Users;
 
 	use Nox\Http\Attributes\ProcessRequestBody;
 	use Nox\Http\Attributes\UseJSON;
@@ -13,18 +12,18 @@
 	use Nox\Router\BaseController;
 
 	#[Controller]
-	#[RouteBase("/\/api\/(?<version>v\d)/", true)]
-	class ExampleAPIController extends BaseController{
+	#[RouteBase("/users")]
+	class UsersController extends BaseController{
 
 		#[Route("GET", "/")]
-		public function apiHomeView(): string{
-			return "API home view example.";
+		public function usersHomeView(): string{
+			return "Users microservice home view..";
 		}
 
-		#[Route("PUT", "/some/resource/to/put")]
+		#[Route("PUT", "/users")]
 		#[UseJSON] // Lets the router know to put the response content-type as JSON and to send JSONResult as a JSON string
 		#[ProcessRequestBody] // Parses the raw request body if it is a non-GET request
-		public function subView(): JSONResult{
+		public function addUser(): JSONResult{
 			// Payload is the request body parsed into an array
 			$payload = BaseController::$requestPayload;
 

@@ -1,10 +1,10 @@
 <?php
 
-	require_once __DIR__ . "/../models/UsersModel.php";
+	namespace Users;
 
 	use Nox\ORM\Interfaces\ModelInstance;
-	use Nox\ORM\ModelClass;
 	use Nox\ORM\Interfaces\MySQLModelInterface;
+	use Nox\ORM\ModelClass;
 
 	class User extends ModelClass implements ModelInstance
 	{

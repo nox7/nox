@@ -1,19 +1,15 @@
 <?php
 
-	// No need to require the autoload in the Controller.
-	// The controller has the scope of the request.php file
-
-	require_once __DIR__ . "/../attributes/NeverUsable.php";
-
 	use Nox\RenderEngine\Exceptions\LayoutDoesNotExist;
+	use Nox\RenderEngine\Exceptions\ParseError;
 	use Nox\RenderEngine\Exceptions\ViewFileDoesNotExist;
 	use Nox\RenderEngine\Renderer;
 	use Nox\Router\Attributes\Controller;
 	use Nox\Router\Attributes\Route;
-	use Nox\RenderEngine\Exceptions\ParseError;
+	use Nox\Router\BaseController;
 
 	#[Controller]
-	class HomeController extends \Nox\Router\BaseController{
+	class HomeController extends BaseController{
 
 		/**
 		 * @throws ParseError
@@ -42,8 +38,7 @@
 		 */
 		#[Route("GET", "/always-404")]
 		#[NeverUsable()]
-		public function always404View(): string{
-			return "uh-oh";
-			// return Renderer::renderView("home.html");
+		public function always404View(): void{
+			// Never runs
 		}
 	}

@@ -17,6 +17,13 @@
 		}
 
 		/**
+		 * @return Payload[]
+		 */
+		public function getAllPayloads(): array{
+			return $this->payloadObjects;
+		}
+
+		/**
 		 * @param string $name
 		 * @return ArrayPayload|null
 		 * @throws NoPayloadFound

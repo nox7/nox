@@ -255,7 +255,7 @@
 					$value = $clause['value'];
 
 					if ($isRaw){
-						$whereClause .= sprintf("`%s` %s %s", $columnNameFormatted, $condition, $value);
+						$whereClause .= sprintf("%s %s %s", $columnName, $condition, $value);
 					}else {
 						if (
 							$condition !== "is" &&

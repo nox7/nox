@@ -52,7 +52,7 @@
 				}
 			}
 
-			return $this->router->routeCurrentRequest($this);
+			return $this->router->routeCurrentRequest();
 		}
 
 		/**
@@ -88,7 +88,10 @@
 				// Successful route with an outputtable result.
 				// This is the result of the route (page, response, etc)
 				// Output it and be done with things
-				print($routeResult);
+				header("content-length: " . strlen($routeResult));
+				if ($this->router->requestMethod !== "head"){
+					print($routeResult);
+				}
 				exit();
 			}else{
 				// TODO Allow an attribute to set the response code and route to use

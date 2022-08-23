@@ -54,7 +54,7 @@
 		 * @return void
 		 */
 		public function processRequestAsStaticFile(): void{
-			if ($this->requestMethod === "get") {
+			if ($this->requestMethod === "get" || $this->requestMethod === "head") {
 				$mimeType = $this->noxInstance->staticFileHandler->getStaticFileMime($this->requestPath);
 				// Do not serve unknown mime types
 				if ($mimeType !== null) {
@@ -70,8 +70,15 @@
 								header(sprintf("cache-control: max-age=%d", $cacheTime));
 							}
 
+							$fileContents = file_get_contents(realpath($staticFilePath));
 							header("content-type: $mimeType");
-							print(file_get_contents(realpath($staticFilePath)));
+							header("content-length: " . strlen($fileContents));
+
+							// Only output for GET methods and not HEAD
+							if ($this->requestMethod === "get") {
+								print($fileContents);
+							}
+
 							exit();
 						}
 					}

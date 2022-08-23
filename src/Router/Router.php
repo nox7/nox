@@ -116,7 +116,10 @@
 				exit();
 			}elseif ($routeResult !== null){
 				// Successful. Output the result of the request
-				print($routeResult);
+				header("content-length: " . strlen($routeResult));
+				if ($this->requestMethod !== "head") {
+					print($routeResult);
+				}
 				exit();
 			}
 		}

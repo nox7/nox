@@ -5,7 +5,6 @@
 
 	class BaseController{
 		public static Nox $noxInstance;
-		public static ?RequestHandler $requestHandler = null;
 
 		/**
 		 * @var array Parameters from the route that are captured using regular expressions

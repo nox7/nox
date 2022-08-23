@@ -372,7 +372,7 @@
 
 						// Check if the first argument (request method arg)
 						// matches the server request method
-						if (strtolower($routeAttributeInstance->method) === strtolower($requestMethod)) {
+						if (strtolower($routeAttributeInstance->method) === strtolower($requestMethod) || (strtolower($routeAttributeInstance->method) === "get" && $requestMethod === "head")) {
 
 							// Is the route a regular expression?
 							if ($routeAttributeInstance->isRegex === false) {
@@ -438,7 +438,7 @@
 								// Break this current loop and move on to the next.
 								// The route isn't usable, but the attribute response
 								// did not change the HTTP response code or rewrite the route path
-								break 1;
+								break;
 							}
 						}
 					}
@@ -483,7 +483,7 @@
 			// that are manually added
 			foreach($this->dynamicRoutes as $dynamicRoute){
 				// Check if this route can be processed
-				if ($dynamicRoute->requestMethod === $this->requestMethod) {
+				if ($dynamicRoute->requestMethod === $this->requestMethod || ($dynamicRoute->requestMethod === "get" && $this->requestMethod === "head")) {
 					if ($dynamicRoute->onRouteCheck !== null) {
 						/** @var DynamicRouteResponse $dynamicRouteResponse */
 						$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call(new BaseController);

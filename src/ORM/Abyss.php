@@ -758,6 +758,20 @@
 			// definitions are updated
 			$columnNamesDefinedByModel = [];
 
+			/** @var ColumnDefinition $columnDefinition */
+			foreach($model->getColumns() as $columnDefinition){
+				$columnNamesDefinedByModel[] = $columnDefinition->name;
+			}
+
+			// Get all the columns currently in the table
+			$columnNamesInTable = $this->getAllColumnNamesInTable($model, $tableName);
+			foreach($columnNamesInTable as $columnNameInTable){
+				if (!in_array($columnNameInTable, $columnNamesDefinedByModel)){
+					// Drop it
+					$queriesToExecute .= sprintf("ALTER TABLE `%s` DROP COLUMN `%s`;", $tableName, $columnNameInTable);
+				}
+			}
+
 			$previousColumnNameIterated = null;
 			/** @var ColumnDefinition $columnDefinition */
 			foreach($model->getColumns() as $columnDefinition){

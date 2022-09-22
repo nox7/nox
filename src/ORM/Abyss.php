@@ -776,17 +776,22 @@
 			/** @var ColumnDefinition $columnDefinition */
 			foreach($model->getColumns() as $columnDefinition){
 				$columnName = $columnDefinition->name;
-				$columnNamesDefinedByModel[] = $columnName;
+				$primaryKeyDefinitionString = "";
+
+				if ($columnDefinition->isPrimary && !$this->isColumnAPrimaryKey($model, $tableName, $columnName)){
+					$primaryKeyDefinitionString = "PRIMARY KEY FIRST";
+				}
+
 				if (!$this->doesColumnExistInTable($model, $tableName, $columnName)){
 					// Create the whole thing
-					$queriesToExecute .= "ALTER TABLE `$tableName` ADD COLUMN " . $this->getColumnDefinitionAsMySQLSyntax($columnDefinition) . ";\n";
+					$queriesToExecute .= sprintf(
+						"ALTER TABLE `$tableName` ADD COLUMN %s %s;\n",
+						$this->getColumnDefinitionAsMySQLSyntax($columnDefinition),
+						$primaryKeyDefinitionString
+					);
 				}else{
 					// Redefine the column to make sure it matches
-					// Since we're altering, we have to check if a PRIMARY KEY needs to be appended
-					$primaryKeyDefinitionString = "";
-					if ($columnDefinition->isPrimary && !$this->isColumnAPrimaryKey($model, $tableName, $columnName)){
-						$primaryKeyDefinitionString = "PRIMARY KEY";
-					}
+
 					$queriesToExecute .= sprintf(
 						"ALTER TABLE `%s` MODIFY %s %s %s;\n",
 						$tableName,

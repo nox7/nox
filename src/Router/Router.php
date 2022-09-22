@@ -7,6 +7,7 @@
 	use Nox\Http\Redirect;
 	use Nox\Http\Rewrite;
 	use Nox\Nox;
+	use Nox\Router\Attributes\Controller;
 	use Nox\Router\Attributes\Route;
 	use Nox\Router\Attributes\RouteBase;
 	use Nox\Router\Exceptions\NoMatchingRoute;
@@ -323,6 +324,26 @@
 		}
 
 		/**
+		 * Constructs all attributes on a class except for the reserved attributes used internally. Used when a route
+		 * is chosen inside of the class provided.
+		 * @param ReflectionClass $class
+		 * @return void
+		 */
+		public function constructClassAttributes(ReflectionClass $class): void{
+			$attributes = $class->getAttributes();
+			$ignoredAttributes = [
+				RouteBase::class,
+				Controller::class,
+			];
+
+			foreach($attributes as $attribute){
+				if (!in_array($attribute->getName(), $ignoredAttributes)){
+					$attribute->newInstance();
+				}
+			}
+		}
+
+		/**
 		 * Routes a request to a controller method, if one matches the set criteria
 		 * @throws ReflectionException
 		 * @throws NoMatchingRoute
@@ -431,10 +452,12 @@
 									// Rewrite this request
 									$this->requestPath = $attributeResponse->newRequestPath;
 									$this->requestMethod = "get";
+									$this->constructClassAttributes($routableController->reflectionClass);
 									return $this->routeCurrentRequest();
 								}else{
 									// A response code was set, but no new request path.
 									// Just return a blank string in this case.
+									$this->constructClassAttributes($routableController->reflectionClass);
 									return "";
 								}
 							}else{
@@ -463,6 +486,9 @@
 						foreach($chosenRouteAttributes as $chosenRouteAttribute){
 							$chosenRouteAttribute->newInstance();
 						}
+
+						// Initiate attributes for the class this ran from
+						$this->constructClassAttributes($routableController->reflectionClass);
 
 						// Invoke the controller's chosen public method
 						$routeReturn = $reflectionMethod->invoke($classInstance);

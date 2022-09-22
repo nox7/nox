@@ -758,21 +758,40 @@
 			// definitions are updated
 			$columnNamesDefinedByModel = [];
 
+			/** @var ColumnDefinition $columnDefinition */
+			foreach($model->getColumns() as $columnDefinition){
+				$columnNamesDefinedByModel[] = $columnDefinition->name;
+			}
+
+			// Get all the columns currently in the table
+			$columnNamesInTable = $this->getAllColumnNamesInTable($model, $tableName);
+			foreach($columnNamesInTable as $columnNameInTable){
+				if (!in_array($columnNameInTable, $columnNamesDefinedByModel)){
+					// Drop it
+					$queriesToExecute .= sprintf("ALTER TABLE `%s` DROP COLUMN `%s`;", $tableName, $columnNameInTable);
+				}
+			}
+
 			$previousColumnNameIterated = null;
 			/** @var ColumnDefinition $columnDefinition */
 			foreach($model->getColumns() as $columnDefinition){
 				$columnName = $columnDefinition->name;
-				$columnNamesDefinedByModel[] = $columnName;
+				$primaryKeyDefinitionString = "";
+
+				if ($columnDefinition->isPrimary && !$this->isColumnAPrimaryKey($model, $tableName, $columnName)){
+					$primaryKeyDefinitionString = "PRIMARY KEY FIRST";
+				}
+
 				if (!$this->doesColumnExistInTable($model, $tableName, $columnName)){
 					// Create the whole thing
-					$queriesToExecute .= "ALTER TABLE `$tableName` ADD COLUMN " . $this->getColumnDefinitionAsMySQLSyntax($columnDefinition) . ";\n";
+					$queriesToExecute .= sprintf(
+						"ALTER TABLE `$tableName` ADD COLUMN %s %s;\n",
+						$this->getColumnDefinitionAsMySQLSyntax($columnDefinition),
+						$primaryKeyDefinitionString
+					);
 				}else{
 					// Redefine the column to make sure it matches
-					// Since we're altering, we have to check if a PRIMARY KEY needs to be appended
-					$primaryKeyDefinitionString = "";
-					if ($columnDefinition->isPrimary && !$this->isColumnAPrimaryKey($model, $tableName, $columnName)){
-						$primaryKeyDefinitionString = "PRIMARY KEY";
-					}
+
 					$queriesToExecute .= sprintf(
 						"ALTER TABLE `%s` MODIFY %s %s %s;\n",
 						$tableName,
@@ -805,20 +824,31 @@
 				$previousColumnNameIterated = $columnName;
 			}
 
-			// Get all the columns currently in the table
-			$columnNamesInTable = $this->getAllColumnNamesInTable($model, $tableName);
-			foreach($columnNamesInTable as $columnNameInTable){
-				if (!in_array($columnNameInTable, $columnNamesDefinedByModel)){
-					// Drop it
-					$queriesToExecute .= sprintf("ALTER TABLE `%s` DROP COLUMN `%s`;", $tableName, $columnNameInTable);
-				}
-			}
+			$connection = $this->getConnectionToDatabase($model->getDatabaseName());
 
-			$this->getConnectionToDatabase($model->getDatabaseName())->multi_query($queriesToExecute);
+			try {
+				$connection->multi_query($queriesToExecute);
+			}catch(mysqli_sql_exception $e){
+				throw new mysqli_sql_exception(sprintf(
+					"MySQL error on query set %s. Original exception message: %s",
+					$queriesToExecute,
+					$e->getMessage(),
+				));
+			}
 
 			// Remove the queries from the result stack
 			// Otherwise "commands out of sync" will occur
-			while ($result = $this->getConnectionToDatabase($model->getDatabaseName())->next_result()){}
+			do{
+				try {
+					$result = $connection->next_result();
+				}catch(mysqli_sql_exception $e){
+					throw new mysqli_sql_exception(sprintf(
+						"MySQL error on query set %s. Original exception message: %s",
+						$queriesToExecute,
+						$e->getMessage(),
+					));
+				}
+			}while ($result !== false);
 		}
 
 		/**

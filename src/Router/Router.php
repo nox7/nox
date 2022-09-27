@@ -1,10 +1,12 @@
 <?php
 	namespace Nox\Router;
 
+	use DateTime;
 	use Exception;
 	use Nox\Http\Attributes\ChosenRouteAttribute;
 	use Nox\Http\Interfaces\ArrayLike;
 	use Nox\Http\Redirect;
+	use Nox\Http\Request;
 	use Nox\Http\Rewrite;
 	use Nox\Nox;
 	use Nox\Router\Attributes\Controller;
@@ -68,7 +70,26 @@
 							 */
 							$cacheTime = $this->noxInstance->staticFileHandler->getCacheTimeForMime($mimeType);
 							if ($cacheTime !== null) {
+
 								header(sprintf("cache-control: max-age=%d", $cacheTime));
+
+								$lastModifiedTime = filemtime($staticFilePath);
+								if ($lastModifiedTime !== false){
+									$lastModifiedDateTime = new DateTime('UTC');
+									$lastModifiedDateTimestamp = $lastModifiedDateTime->format('D, d M Y H:i:s \G\M\T');
+									header(sprintf("last-modified: %s", $lastModifiedDateTimestamp));
+									header(sprintf("etag: %d", $lastModifiedTime));
+
+									// Check if the client sent an "If-None-Match" header with the same etag used above
+									// If so, simply respond with 304 Not Modified and exit.
+									// Else, don't exit
+									$ifNoneMatch = Request::getFirstHeaderValue("If-None-Match");
+									if ((string) $lastModifiedTime === $ifNoneMatch){
+										// Etags match, no need to send file. It's not stale
+										http_response_code(304);
+										exit();
+									}
+								}
 							}
 
 							$fileContents = file_get_contents(realpath($staticFilePath));

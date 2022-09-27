@@ -244,6 +244,16 @@
 							}
 						}
 					}
+				}elseif(substr($contentType, 0, 33) === "application/x-www-form-urlencoded"){
+					$body = file_get_contents("php://input");
+					parse_str($body, $payloadAsArray);
+					$formData = $payloadAsArray;
+					foreach($payloadAsArray as $key=>$value){
+						$textPayload = new TextPayload();
+						$textPayload->name = $key;
+						$textPayload->contents = $value;
+						$requestPayload->pushPayload($textPayload);
+					}
 				}
 			}
 

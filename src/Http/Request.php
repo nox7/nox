@@ -20,6 +20,16 @@
 			self::$lastProcessedRequestPayload = $requestPayload;
 		}
 
+		public static function getFirstHeaderValue(string $headerName): ?string{
+			foreach(getallheaders() as $name => $value){
+				if (strtolower($name) === strtolower($headerName)){
+					return $value;
+				}
+			}
+
+			return null;
+		}
+
 		/**
 		 * Fetches the raw body of a request
 		 */

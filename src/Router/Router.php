@@ -2,6 +2,7 @@
 	namespace Nox\Router;
 
 	use DateTime;
+	use DateTimeZone;
 	use Exception;
 	use Nox\Http\Attributes\ChosenRouteAttribute;
 	use Nox\Http\Interfaces\ArrayLike;
@@ -75,7 +76,8 @@
 
 								$lastModifiedTime = filemtime($staticFilePath);
 								if ($lastModifiedTime !== false){
-									$lastModifiedDateTime = new DateTime('UTC');
+									$lastModifiedDateTime = new DateTime("now", new DateTimeZone('UTC'));
+									$lastModifiedDateTime->setTimestamp($lastModifiedTime);
 									$lastModifiedDateTimestamp = $lastModifiedDateTime->format('D, d M Y H:i:s \G\M\T');
 									header(sprintf("last-modified: %s", $lastModifiedDateTimestamp));
 									header(sprintf("etag: %d", $lastModifiedTime));

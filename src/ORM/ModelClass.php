@@ -89,7 +89,9 @@
 			);
 			$statement = $abyss->getConnectionToDatabase($model->getDatabaseName())->prepare($query);
 			if ($columnQuery !== null && !empty($columnQuery->whereClauses)) {
-				$statement->bind_param($preparedStatementBindFlags, ...$boundValues);
+				if (!empty($preparedStatementBindFlags)) {
+					$statement->bind_param($preparedStatementBindFlags, ...$boundValues);
+				}
 			}
 			$statement->execute();
 			$result = $statement->get_result();

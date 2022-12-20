@@ -571,7 +571,10 @@
 
 					/** @var \ReflectionMethod $routableMethod */
 					foreach ($routeMethodsToAttempt as $routableMethod){
-						$attributes = $routableMethod->getAttributes();
+						$attributes = $routableMethod->getAttributes(
+							RouteAttribute::class,
+							\ReflectionAttribute::IS_INSTANCEOF
+						);
 
 						// Keep track of which attributes are RouteAttribute instances
 						$neededToRoute = 0;
@@ -582,48 +585,47 @@
 						foreach ($attributes as $attribute){
 							$attributeClass = new \ReflectionClass($attribute->getName());
 							$attributeParentClassName = $attributeClass->getParentClass();
-							if ($attributeParentClassName instanceof \ReflectionClass && $attributeParentClassName->getName() === RouteAttribute::class){
-								/** @var RouteAttribute $attrInstance */
-								$attrInstance = $attribute->newInstance();
-								++$neededToRoute;
+							/** @var RouteAttribute $attrInstance */
+							$attrInstance = $attribute->newInstance();
+							++$neededToRoute;
 
-								$attributeResponse = $attrInstance->getAttributeResponse();
-								if ($attributeResponse->isRouteUsable){
-									++$passedAttributes;
-								}else{
-									// This attribute says the route is not currently usable.
+							$attributeResponse = $attrInstance->getAttributeResponse();
+							if ($attributeResponse->isRouteUsable){
+								++$passedAttributes;
+							}else{
+								// This attribute says the route is not currently usable.
 
-									// However, a route can alter the current HTTP response
-									// Check if this AttributeResponse is doing so
-									if ($attributeResponse->responseCode !== null){
-										http_response_code($attributeResponse->responseCode);
-										if ($attributeResponse->newRequestPath !== null){
-											// There is a new request path
-											// Instantiate a new request handler now and handle it
-											// A new router must also be created
-											$newRouter = new Router(
-												$attributeResponse->newRequestPath,
-												$this->requestMethod,
-											);
-											$newRouter->staticFileHandler = $this->staticFileHandler;
-											$newRouter->viewSettings = $this->viewSettings;
-											$newRouter->noxConfig = $this->noxConfig;
-											$newRouter->controllersFolder = $this->controllersFolder;
-											$newRouter->loadMVCControllers();
-											$newRequestHandler = new RequestHandler($newRouter);
-											$newRequestHandler->processRequest();
-											exit();
-										}else{
-											// A response code was set, but no new request path.
-											// Just return a blank string in this case.
-											return "";
-										}
+								// However, a route can alter the current HTTP response
+								// Check if this AttributeResponse is doing so
+								if ($attributeResponse->responseCode !== null){
+									http_response_code($attributeResponse->responseCode);
+									if ($attributeResponse->newRequestPath !== null){
+										// There is a new request path
+										// Instantiate a new request handler now and handle it
+										// A new router must also be created
+										$newRouter = new Router(
+											$attributeResponse->newRequestPath,
+											$this->requestMethod,
+										);
+
+										$newRouter->staticFileHandler = $this->staticFileHandler;
+										$newRouter->viewSettings = $this->viewSettings;
+										$newRouter->noxConfig = $this->noxConfig;
+										$newRouter->controllersFolder = $this->controllersFolder;
+										$newRouter->loadMVCControllers();
+										$newRequestHandler = new RequestHandler($newRouter);
+										$newRequestHandler->processRequest();
+										exit();
 									}else{
-										// Break this current loop and move on to the next.
-										// The route isn't usable, but the attribute response
-										// did not change the HTTP response code or rewrite the route path
-										break 1;
+										// A response code was set, but no new request path.
+										// Just return a blank string in this case.
+										return "";
 									}
+								}else{
+									// Break this current loop and move on to the next.
+									// The route isn't usable, but the attribute response
+									// did not change the HTTP response code or rewrite the route path
+									break 1;
 								}
 							}
 						}

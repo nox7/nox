@@ -612,7 +612,7 @@
 										$newRouter->viewSettings = $this->viewSettings;
 										$newRouter->noxConfig = $this->noxConfig;
 										$newRouter->controllersFolder = $this->controllersFolder;
-										$newRouter->loadMVCControllers();
+										$newRouter->routableMethods = $this->routableMethods;
 										$newRequestHandler = new RequestHandler($newRouter);
 										$newRequestHandler->processRequest();
 										exit();

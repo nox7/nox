@@ -567,7 +567,7 @@
 
 					// If we're here, then this route can be checked against the current URI
 					if ($dynamicRoute->isRegex === false) {
-						if ($this->requestPath === $dynamicRoute->requestPath) {
+						if (strtolower($this->requestPath) === strtolower($dynamicRoute->requestPath)) {
 							return $dynamicRoute->onRender->call(new BaseController);
 						}
 					}else{

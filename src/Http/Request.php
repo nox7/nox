@@ -2,24 +2,31 @@
 
 	namespace Nox\Http;
 
-	use Nox\ORM\MySQLDataTypes\Text;
-
 	/**
-	 * An abstraction for the request payload
+	 * An object that abstracts and represents an HTTP request.
 	 */
 	class Request
 	{
 
-		private static RequestPayload | null $lastProcessedRequestPayload = null;
+		/**
+		 * @var string The URL path of the current request
+		 */
+		private string $path;
 
-		public static function getRequestPayload(): RequestPayload | null{
-			return self::$lastProcessedRequestPayload;
-		}
+		/**
+		 * @var string The request method. Always in lowercase. E.g., "post", "get", "patch", etc.
+		 */
+		private string $method;
 
-		public static function setRequestPayload(RequestPayload $requestPayload): void{
-			self::$lastProcessedRequestPayload = $requestPayload;
-		}
+		private ?RequestPayload $payload = null;
 
+		private RequestParameters $parameters;
+
+		/**
+		 * @deprecated Use non-static alternative
+		 * @param string $headerName
+		 * @return string|null
+		 */
 		public static function getFirstHeaderValue(string $headerName): ?string{
 			foreach(getallheaders() as $name => $value){
 				if (strtolower($name) === strtolower($headerName)){
@@ -30,105 +37,97 @@
 			return null;
 		}
 
+		public function __construct()
+		{
+			$this->parameters = new RequestParameters();
+		}
+
 		/**
-		 * Fetches the raw body of a request
+		 * Returns the RequestPayload object for this request. This is always null if the request payload was never processed.
+		 * Use the attribute #[ProcessRequestBody] or call the Request->processRequestBody() method to populate the request
+		 * payload.
+		 * @return RequestPayload|null
+		 */
+		public function getPayload(): ?RequestPayload{
+			return $this->payload;
+		}
+
+		public function setPayload(RequestPayload $payload): void{
+			$this->payload = $payload;
+		}
+
+		/**
+		 * Returns the first value of a header, or null
+		 */
+		public function getHeaderValue(string $headerName): ?string{
+			foreach(getallheaders() as $name => $value){
+				if (strtolower($name) === strtolower($headerName)){
+					return $value;
+				}
+			}
+
+			return null;
+		}
+
+		/**
+		 * Returns an array of values of a header name (there could be multiple duplicate headers). Empty array if there are no headers with the given name.
+		 * @param string $headerName
+		 * @return array
+		 */
+		public function getHeaderValues(string $headerName): array{
+			$values = [];
+			foreach(getallheaders() as $name => $value){
+				if (strtolower($name) === strtolower($headerName)){
+					$values[] = $value;
+				}
+			}
+
+			return $values;
+		}
+
+		/**
+		 * Fetches the body of a request.
 		 */
 		public function getRawBody(): string
 		{
 			return file_get_contents("php://input");
 		}
 
-		/**
-		 * Fetches a value from the POST payload. Safe-checks with isset
-		 * @param string $name
-		 * @param mixed $default Will return this if the POST[$name] is not set
-		 * @return mixed
-		 */
-		public function getPostValue(string $name, mixed $default): mixed
-		{
-			if (isset($_POST[$name])) {
-				return $_POST[$name];
-			} else {
-				return $default;
-			}
+		public function addParameter(
+			string $name,
+			string $value,
+		): void{
+			$this->parameters->addParameter($name, $value);
 		}
 
 		/**
-		 * Fetches a value from the GET query parameters. Safe-checks with isset
-		 * @param string $name
-		 * @param mixed $default Will return this if the GET[$name] is not set
-		 * @return mixed
+		 * Gets the value of a URL request parameter, or returns null if it doesn't exist.
 		 */
-		public function getGetValue(string $name, mixed $default): mixed
-		{
-			if (isset($_GET[$name])) {
-				return $_GET[$name];
-			} else {
-				return $default;
-			}
+		public function getParameter(string $name): ?string{
+			$parameter = $this->parameters->getParameter($name);
+
+			return $parameter?->value;
+
+		}
+
+		public function setPath(string $path): void{
+			$this->path = $path;
+		}
+
+		public function getPath(): string{
+			return $this->path;
+		}
+
+		public function setMethod(string $method): void{
+			$this->method = $method;
+		}
+
+		public function getMethod(): string{
+			return $this->method;
 		}
 
 		/**
-		 * Fetches a value from the cookie string in the request. Safe-checks with isset
-		 * @param string $name
-		 * @param mixed $default Will return this if the GET[$name] is not set
-		 * @return mixed
-		 */
-		public function getCookieValue(string $name, mixed $default): mixed
-		{
-			if (isset($_COOKIE[$name])) {
-				return $_COOKIE[$name];
-			} else {
-				return $default;
-			}
-		}
-
-		/**
-		 * Old method of fetching files from the FILE payload.
-		 * @deprecated
-		 */
-		public function getFileValue(string $value): ?array
-		{
-
-			if (empty($_FILES)) {
-				return null;
-			}
-
-			if (!isset($_FILES[$value])) {
-				return null;
-			}
-
-			// tmp_name can be an array for multiple files
-			if (is_array($_FILES[$value]['tmp_name'])) {
-				foreach ($_FILES[$value]['tmp_name'] as $tmp_name) {
-					if (!is_uploaded_file($tmp_name)) {
-						return null;
-					}
-				}
-			} else {
-				if (!is_uploaded_file($_FILES[$value]['tmp_name'])) {
-					return null;
-				}
-			}
-
-			// Error can also be an array
-			if (is_array($_FILES[$value]['error'])) {
-				foreach ($_FILES[$value]['error'] as $error) {
-					if ($error != 0) {
-						return null;
-					}
-				}
-			} else {
-				if ($_FILES[$value]['error'] != 0) {
-					return null;
-				}
-			}
-
-			return $_FILES[$value];
-		}
-
-		/**
-		 * Attempts to fetch the IP of the originating request.
+		 * Attempts to fetch the client IP from the request. Returns a blank string if an IP could not be found.
 		 */
 		public function getIP(): string
 		{
@@ -147,6 +146,7 @@
 		}
 
 		/**
+		 * Checks if a packet is of type file
 		 * @param array{headers: array, body: string} $formDataPacket
 		 * @return bool
 		 */
@@ -167,86 +167,129 @@
 		}
 
 		/**
-		 * Parses multipart/form-data and application/json
+		 * Parses multipart/form-data, application/json, and application/x-www-form-urlencoded request bodies
+		 * into a RequestPayload. The payload is then set in the current request instance and can be retrieved with
+		 * $request->getPayload()
 		 */
-		public function processRequestBody(): array
+		public function processRequestBody(): void
 		{
+			// First, check if it's a POST request where the data has already been processed internally
+			// by PHP.
+			$requestMethodLowered = strtolower($_SERVER['REQUEST_METHOD']);
 			$requestPayload = new RequestPayload();
-			$requestMethod = strtolower($_SERVER['REQUEST_METHOD']);
-			$contentType = $_SERVER['CONTENT_TYPE'];
-			$didMatch = preg_match("/multipart\/form-data; boundary=(.+)/", $contentType, $matches);
-			if ($didMatch === 1) {
-				$boundary = $matches[1];
-				$formData = [];
-				$parsedFormData = $this->getAllFormDataFromRequest($boundary);
-				/** @var array{headers: array, body: string} $packet */
-				foreach ($parsedFormData as $packet) {
+			if ($requestMethodLowered === "post" && !empty($_POST)) {
+				// Handle creating the RequestPayload object for the POST fields and then check if the _FILES
+				// fields are not empty
+				foreach ($_POST as $key => $value) {
+					$textPayload = new TextPayload();
+					$textPayload->name = $key;
+					$textPayload->contents = $value;
+					$requestPayload->pushPayload($textPayload);
+				}
 
-					// Check if this packet is a file upload or not
-					if ($this->isPacketFileUpload($packet)){
-						// Handle this as a file upload
-						$payloadName = null;
-						$fileUpload = new FileUploadPayload();
-						$fileUpload->contents = $packet['body'];
-						$fileUpload->fileSize = strlen($packet['body']);
-						/** @var array{name: string, value: string, attributes: array} $header */
-						foreach ($packet['headers'] as $header) {
-							if (strtolower($header['name']) === "content-disposition") {
-								/** @var array{name: string, value: string} $attribute */
-								foreach ($header['attributes'] as $attribute) {
-									if ($attribute['name'] === "name") {
-										$payloadName = $attribute['value'];
-									}elseif ($attribute['name'] === "filename"){
-										$fileUpload->fileName = $attribute['value'];
-									}
-								}
-							}elseif (strtolower($header['name']) === "content-type"){
-								$fileUpload->contentType = $header['value'];
-							}
-						}
-
-						if ($payloadName !== null){
-							$fileUpload->name = $payloadName;
-							$formData[$payloadName] = $fileUpload;
+				if (!empty($_FILES)) {
+					/**
+					 * @var string $key
+					 * @var array{name: string, type: string, tmp_name: string, error: int, size: int} $fileArray
+					 */
+					foreach ($_FILES as $key => $fileArray) {
+						if (!empty($fileArray['tmp_name'])) {
+							$fileContents = file_get_contents($fileArray['tmp_name']);
+							$fileUpload = new FileUploadPayload();
+							$fileUpload->name = $key;
+							$fileUpload->contents = $fileContents;
+							$fileUpload->contentType = $fileArray['type'];
+							$fileUpload->fileSize = $fileArray['size'];
+							$fileUpload->fileName = $fileArray['name'];
 							$requestPayload->pushPayload($fileUpload);
 						}
-					}else {
-						// Handle this as a normal payload
-						/** @var array{name: string, value: string, attributes: array} $header */
-						foreach ($packet['headers'] as $header) {
-							if (strtolower($header['name']) === "content-disposition") {
-								/** @var array{name: string, value: string} $attribute */
-								foreach ($header['attributes'] as $attribute) {
-									if ($attribute['name'] === "name") {
-										$formData[$attribute['value']] = $packet['body'];
+					}
+				}
+			}else {
+				$contentType = $_SERVER['CONTENT_TYPE'] ?? null;
+				if ($contentType !== null){
+					$didMatch = preg_match("/multipart\/form-data; boundary=(.+)/", $contentType, $matches);
+					if ($didMatch === 1) {
+						$boundary = $matches[1];
+						$parsedFormData = $this->getAllFormDataFromRequest($boundary);
+
+						/** @var array{headers: array, body: string} $packet */
+						foreach ($parsedFormData as $packet) {
+
+							// Check if this packet is a file upload or not
+							if ($this->isPacketFileUpload($packet)) {
+								// Handle this as a file upload
+								$payloadName = null;
+								$fileUpload = new FileUploadPayload();
+								$fileUpload->contents = $packet['body'];
+								$fileUpload->fileSize = strlen($packet['body']);
+								/** @var array{name: string, value: string, attributes: array} $header */
+								foreach ($packet['headers'] as $header) {
+									if (strtolower($header['name']) === "content-disposition") {
+										/** @var array{name: string, value: string} $attribute */
+										foreach ($header['attributes'] as $attribute) {
+											if ($attribute['name'] === "name") {
+												$payloadName = $attribute['value'];
+											} elseif ($attribute['name'] === "filename") {
+												$fileUpload->fileName = $attribute['value'];
+											}
+										}
+									} elseif (strtolower($header['name']) === "content-type") {
+										$fileUpload->contentType = $header['value'];
+									}
+								}
+
+								if ($payloadName !== null) {
+									$fileUpload->name = $payloadName;
+									$requestPayload->pushPayload($fileUpload);
+								}
+							} else {
+								// Handle this as a normal payload
+								/** @var array{name: string, value: string, attributes: array} $header */
+								foreach ($packet['headers'] as $header) {
+									if (strtolower($header['name']) === "content-disposition") {
+										/** @var array{name: string, value: string} $attribute */
+										foreach ($header['attributes'] as $attribute) {
+											if ($attribute['name'] === "name") {
+												$textPayload = new TextPayload();
+												$textPayload->name = $attribute['value'];
+												$textPayload->contents = $packet['body'];
+												$requestPayload->pushPayload($textPayload);
+											}
+										}
+									}
+								}
+							}
+						}
+					}else{
+						// Check if JSON
+						if (str_starts_with($contentType, "application/json")) {
+							$formData = json_decode(json: file_get_contents("php://input"), associative: true);
+							if (json_last_error() !== JSON_ERROR_NONE) {
+								// Kill everything
+								http_response_code(500);
+								exit(sprintf("JSON request body is invalid json. Error: %s", json_last_error_msg()));
+							} else {
+								// No errors
+								// Turn them all into payloads
+								foreach ($formData as $key => $value) {
+									if (is_array($value)) {
+										$arrayPayload = new ArrayPayload();
+										$arrayPayload->name = $key;
+										$arrayPayload->contents = $value;
+										$requestPayload->pushPayload($arrayPayload);
+									} else {
 										$textPayload = new TextPayload();
-										$textPayload->name = $attribute['value'];
-										$textPayload->contents = $packet['body'];
+										$textPayload->name = $key;
+										$textPayload->contents = $value;
 										$requestPayload->pushPayload($textPayload);
 									}
 								}
 							}
-						}
-					}
-				}
-			}else{
-				// Check if JSON
-				if (substr($contentType,0, 16) === "application/json"){
-					$formData = json_decode(json: file_get_contents("php://input"), associative: true);
-					if (json_last_error() !== JSON_ERROR_NONE){
-						// Kill everything
-						http_response_code(500);
-						exit(sprintf("JSON request body is invalid json. Error: %s", json_last_error_msg()));
-					}else{
-						// No errors
-						// Turn them all into payloads
-						foreach($formData as $key=>$value){
-							if (is_array($value)){
-								$arrayPayload = new ArrayPayload();
-								$arrayPayload->name = $key;
-								$arrayPayload->contents = $value;
-								$requestPayload->pushPayload($arrayPayload);
-							}else{
+						} elseif (str_starts_with($contentType, "application/x-www-form-urlencoded")) {
+							$body = $this->getRawBody();
+							parse_str($body, $payloadAsArray);
+							foreach ($payloadAsArray as $key => $value) {
 								$textPayload = new TextPayload();
 								$textPayload->name = $key;
 								$textPayload->contents = $value;
@@ -254,22 +297,10 @@
 							}
 						}
 					}
-				}elseif(substr($contentType, 0, 33) === "application/x-www-form-urlencoded"){
-					$body = file_get_contents("php://input");
-					parse_str($body, $payloadAsArray);
-					$formData = $payloadAsArray;
-					foreach($payloadAsArray as $key=>$value){
-						$textPayload = new TextPayload();
-						$textPayload->name = $key;
-						$textPayload->contents = $value;
-						$requestPayload->pushPayload($textPayload);
-					}
 				}
 			}
 
-			self::setRequestPayload($requestPayload);
-
-			return $formData;
+			$this->setPayload($requestPayload);
 		}
 
 		/**
@@ -381,7 +412,8 @@
 		}
 
 		/**
-		 * Processes all the form-data in the raw request
+		 * Fetches the raw body of a request and parses it as a Form in form-data. Requires a form boundary
+		 * to be provided, which can be found in the content-type header of the request.
 		 * @return array{headers: array, body: string}
 		 */
 		private function getAllFormDataFromRequest(string $boundary): array
@@ -394,7 +426,7 @@
 			];
 
 			$data = [];
-			$rawBody = file_get_contents("php://input");
+			$rawBody = $this->getRawBody();
 			$state = $parseStates["NO_STATE"];
 			$currentPacket = [
 				"headers"=>[],
@@ -455,22 +487,6 @@
 			}
 
 			return $data;
-		}
-
-		/**
-		 * Parses a header into a key value pair
-		 * @deprecated
-		 */
-		private function parseHeaderValue(string $headerValue): array
-		{
-			$header = [];
-			preg_match("/^(.+);(.*)/", $headerValue, $matches);
-			$header['value'] = trim($matches[1]);
-			preg_match_all("/([^=]+)=\"(.+?)\"/", $matches[2], $attributeMatches);
-			foreach($attributeMatches[1] as $index=>$attributeName) {
-				$header[trim($attributeName)] = trim($attributeMatches[2][$index]);
-			}
-			return $header;
 		}
 
 	}

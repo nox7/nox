@@ -28,11 +28,15 @@
 
 	class Router{
 
-		public string $controllersFolder = "";
-		public ViewSettings $viewSettings;
-
 		/** @var RoutableController[] $routableControllers */
 		public array $routableControllers = [];
+
+		public Request $currentRequest;
+
+		/**
+		 * @var bool A flag that tells the router whether to output any array-like data as JSON.
+		 */
+		public bool $outputArraysAsJSON = false;
 
 		/** @var DynamicRoute[] $dynamicRoutes */
 		private array $dynamicRoutes = [];
@@ -43,19 +47,24 @@
 			public string $requestMethod,
 		){
 			// Force the requestPath and requestMethod to be lowercase
-			// UPDATE Do not lower the request path. Linux is case sensitive for files
+			// UPDATE Do not lower the request path. Linux is case-sensitive for files
 			// $this->requestPath = strtolower($this->requestPath);
 			$this->requestMethod = strtolower($this->requestMethod);
 
 			if (!str_starts_with($this->requestPath, "/")){
 				$this->requestPath = "/" . $this->requestPath;
 			}
+
+			$this->currentRequest = new Request();
+			$this->currentRequest->setMethod($this->requestMethod);
+			$this->currentRequest->setPath($this->requestPath);
 		}
 
 		/**
 		 * Attempts to process a request as a static file. Code will stop execution after this call
 		 * if the request is a static file.
 		 * @return void
+		 * @throws Exception
 		 */
 		public function processRequestAsStaticFile(): void{
 			if ($this->requestMethod === "get" || $this->requestMethod === "head") {
@@ -120,9 +129,10 @@
 		/**
 		 * Process the request as routable - as in, controllers should be handling the current request.
 		 * @return void
-		 * @throws NoMatchingRoute
+		 * @throws NoMatchingRoute|ReflectionException
 		 */
-		public function processRoutableRequest(){
+		public function processRoutableRequest(): void
+		{
 			$routeResult = $this->routeCurrentRequest();
 			if ($routeResult instanceof Rewrite){
 				// Set the response code provided
@@ -172,7 +182,7 @@
 		 * Currently, this only checks for the presence and validity RouteBase attribute.
 		 * @throws RouteBaseNoMatch
 		 */
-		public function getBaselessRouteForClass(\ReflectionClass $classReflection): string{
+		public function getBaselessRouteForClass(ReflectionClass $classReflection): string{
 			$attributes = $classReflection->getAttributes();
 			$hasRouteBase = false;
 
@@ -200,7 +210,7 @@
 							foreach ($matches as $name=>$match){
 								if (is_string($name)){
 									if (isset($match[0])){
-										BaseController::$requestParameters[$name] = $match[0];
+										$this->currentRequest->addParameter($name, $match[0]);
 									}
 								}
 							}
@@ -225,7 +235,7 @@
 		 * Attempts to fetch the base route from a class, if it has one. If the class
 		 * has no RouteBase, then null is returned
 		 */
-		public function getRouteBaseFromClass(\ReflectionClass $reflectionClass): ?object{
+		public function getRouteBaseFromClass(ReflectionClass $reflectionClass): ?object{
 			$routeBaseAttributes = $reflectionClass->getAttributes(
 				name: RouteBase::class,
 				flags: ReflectionAttribute::IS_INSTANCEOF,
@@ -268,7 +278,9 @@
 				}
 
 				/** @var ReflectionMethod[] $methods */
-				$publicControllerReflectionMethods = $routableController->reflectionClass->getMethods(filter: ReflectionMethod::IS_PUBLIC);
+				$publicControllerReflectionMethods = $routableController->reflectionClass->getMethods(
+					filter: ReflectionMethod::IS_PUBLIC
+				);
 
 				foreach($publicControllerReflectionMethods as $reflectionMethod){
 					$allURIsForThisControllerMethod = [];
@@ -280,7 +292,7 @@
 					);
 
 					foreach($routeAttributes as $routeAttribute) {
-						/** @var RouteAttribute $routeAttribute */
+						/** @var Route $routeAttribute */
 						$routeAttribute = $routeAttribute->newInstance();
 						if ($routeAttribute->isRegex === false) {
 							$allURIsForThisControllerMethod[] = $baseUri . $routeAttribute->uri;
@@ -294,6 +306,7 @@
 						flags:ReflectionAttribute::IS_INSTANCEOF,
 					);
 					$routeAttributesPassed = 0;
+
 					foreach($routeAttributeAttributes as $reflectionAttribute){
 						$instanceOfRouteAttribute = $reflectionAttribute->newInstance();
 						if ($instanceOfRouteAttribute->getAttributeResponse()->isRouteUsable){
@@ -348,7 +361,7 @@
 
 		/**
 		 * Constructs all attributes on a class except for the reserved attributes used internally. Used when a route
-		 * is chosen inside of the class provided.
+		 * is chosen inside the class provided.
 		 * @param ReflectionClass $class
 		 * @return void
 		 */
@@ -381,7 +394,9 @@
 			// Go through all the methods collected from the controller classes
 			foreach ($filteredRoutableControllers as $routableController){
 				$classInstance = $routableController->reflectionClass->newInstance();
-				$controllerPublicMethods = $routableController->reflectionClass->getMethods(filter: ReflectionMethod::IS_PUBLIC);
+				$controllerPublicMethods = $routableController->reflectionClass->getMethods(
+					filter: ReflectionMethod::IS_PUBLIC
+				);
 
 				// The request path here will be modified if the class
 				// the Route attribute is in has a RouteBase.
@@ -419,7 +434,10 @@
 
 						// Check if the first argument (request method arg)
 						// matches the server request method
-						if (strtolower($routeAttributeInstance->method) === strtolower($requestMethod) || (strtolower($routeAttributeInstance->method) === "get" && $requestMethod === "head")) {
+						if (
+							strtolower($routeAttributeInstance->method) === strtolower($requestMethod) ||
+							(strtolower($routeAttributeInstance->method) === "get" && $requestMethod === "head")
+						) {
 
 							// Is the route a regular expression?
 							if ($routeAttributeInstance->isRegex === false) {
@@ -436,7 +454,7 @@
 										if (is_string($name)) {
 											if (isset($match[0])) {
 												// Define the matched parameter into the BaseController::$requestParameters
-												BaseController::$requestParameters[$name] = $match[0];
+												$this->currentRequest->addParameter($name, $match[0]);
 											}
 										}
 									}
@@ -514,7 +532,8 @@
 						$this->constructClassAttributes($routableController->reflectionClass);
 
 						// Invoke the controller's chosen public method
-						$routeReturn = $reflectionMethod->invoke($classInstance);
+						$routeReturn = $reflectionMethod->invoke($classInstance, $this->currentRequest);
+
 						// Check if the routeReturn is an object that implements the ArrayLike interface
 						// If so, convert it to an array
 						if ($routeReturn instanceof ArrayLike){
@@ -522,7 +541,7 @@
 						}
 
 						// Check if arrays should be output as JSON
-						if (is_array($routeReturn) && BaseController::$outputArraysAsJSON){
+						if (is_array($routeReturn) && $this->outputArraysAsJSON){
 							return json_encode($routeReturn);
 						}
 
@@ -539,6 +558,7 @@
 					if ($dynamicRoute->onRouteCheck !== null) {
 						/** @var DynamicRouteResponse $dynamicRouteResponse */
 						$dynamicRouteResponse = $dynamicRoute->onRouteCheck->call(new BaseController);
+
 						if ($dynamicRouteResponse->isRouteUsable === true) {
 							// All good
 						} else {
@@ -568,7 +588,7 @@
 					// If we're here, then this route can be checked against the current URI
 					if ($dynamicRoute->isRegex === false) {
 						if (strtolower($this->requestPath) === strtolower($dynamicRoute->requestPath)) {
-							return $dynamicRoute->onRender->call(new BaseController);
+							return $dynamicRoute->onRender->call(new BaseController, $this->currentRequest);
 						}
 					}else{
 						// Regex checks
@@ -579,12 +599,12 @@
 								if (is_string($name)){
 									if (isset($match[0])){
 										// Define the matched parameter into the BaseController::$requestParameters
-										BaseController::$requestParameters[$name] = $match[0];
+										$this->currentRequest->addParameter($name, $match[0]);
 									}
 								}
 							}
 
-							return $dynamicRoute->onRender->call(new BaseController);
+							return $dynamicRoute->onRender->call(new BaseController, $this->currentRequest);
 						}
 					}
 				}

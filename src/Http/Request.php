@@ -18,6 +18,14 @@
 		 */
 		private string $method;
 
+		private array $cookies = [];
+
+		/**
+		 * @var array URL query parameters. Not the same as URL named request parameters. These are parameters in the URL
+		 * prefixed with ? such as ?q=hello&s=world
+		 */
+		private array $queries = [];
+
 		private ?RequestPayload $payload = null;
 
 		private RequestParameters $parameters;
@@ -40,6 +48,30 @@
 		public function __construct()
 		{
 			$this->parameters = new RequestParameters();
+			$this->queries = $_GET ?? [];
+			$this->cookies = $_COOKIE ?? [];
+		}
+
+		public function setQueryValue(string $name, string $value): void{
+			$this->queries[$name] = $value;
+		}
+
+		/**
+		 * Gets the value of a URL query parameter - null if it doesn't exist.
+		 */
+		public function getQueryValue(string $name): ?string{
+			return $this->queries[$name] ?? null;
+		}
+
+		public function setCookie(string $name, string $value): void{
+			$this->cookies[$name] = $value;
+		}
+
+		/**
+		 * Fetches a cookie value. Null if it doesn't exist.
+		 */
+		public function getCookie(string $name): ?string{
+			return $this->cookies[$name] ?? null;
 		}
 
 		/**

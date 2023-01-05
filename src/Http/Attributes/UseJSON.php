@@ -13,6 +13,6 @@
 	class UseJSON extends ChosenRouteAttribute {
 		public function __construct(){
 			header("content-type: application/json; charset=UTF-8");
-			BaseController::$outputArraysAsJSON = true;
+			BaseController::$noxInstance->router->outputArraysAsJSON = true;
 		}
 	}

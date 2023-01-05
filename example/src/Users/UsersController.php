@@ -28,11 +28,19 @@
 		#[ProcessRequestBody] // Parses the raw request body if it is a non-GET request
 		public function addUser(Request $request): JSONResult{
 			// Payload is the request body parsed into an array
-			$payload = BaseController::$requestPayload;
+			$payload = $request->getPayload();
 
-			if (isset($payload['some-data'])){
-				// Insert into DB or something
+			try {
+				$usernamePayload = $payload->getTextPayload("username");
+			}catch(NoPayloadFound $e){
+				http_response_code(400);
+				return new JSONError($e->getMessage());
 			}
+
+			// Username string from the payload
+			$username = $usernamePayload->contents;
+
+			// Insert user into database of users...
 
 			return new JSONSuccess();
 		}

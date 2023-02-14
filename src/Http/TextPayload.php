@@ -2,6 +2,8 @@
 	namespace Nox\Http;
 
 	class TextPayload extends Payload {
-		public string $name;
-		public string|null $contents;
+		public function __construct(
+			public string $name = "",
+			public ?string $contents = null,
+		){}
 	}

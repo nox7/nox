@@ -2,6 +2,8 @@
 	namespace Nox\Http;
 
 	class ArrayPayload extends Payload {
-		public string $name;
-		public array|null $contents;
+		public function __construct(
+			public string $name = "",
+			public ?array $contents = null,
+		){}
 	}

@@ -209,7 +209,7 @@
 			// by PHP.
 			$requestMethodLowered = strtolower($_SERVER['REQUEST_METHOD']);
 			$requestPayload = new RequestPayload();
-			if ($requestMethodLowered === "post") {
+			if ($requestMethodLowered === "post" && (!empty($_POST) || !empty($_FILES))) {
 				// Handle creating the RequestPayload object for the POST fields and then check if the _FILES
 				// fields are not empty
 				foreach ($_POST as $key => $value) {

@@ -25,4 +25,12 @@
 			return $this;
 		}
 
+		/**
+		 * Adds a column order clause, but doesn't wrap the column in backticks. Returns itself for chaining.
+		 */
+		public function byRaw(string $columnName, string $order): self{
+			$this->orderClauses[] = sprintf("%s %s", $columnName, $order);
+			return $this;
+		}
+
 	}

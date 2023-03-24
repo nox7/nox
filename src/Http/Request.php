@@ -31,6 +31,12 @@
 		private RequestParameters $parameters;
 
 		/**
+		 * The raw request body, if any is provided. Obtained from reading the php://input stream.
+		 * @var string
+		 */
+		private string $requestBody = "";
+
+		/**
 		 * @deprecated Use non-static alternative
 		 * @param string $headerName
 		 * @return string|null
@@ -118,11 +124,19 @@
 		}
 
 		/**
-		 * Fetches the body of a request.
+		 * Fetches the raw, unprocessed body of a request. When the request body is processed, this is populated from php://input.
 		 */
 		public function getRawBody(): string
 		{
-			return file_get_contents("php://input");
+			return $this->requestBody;
+		}
+
+		/**
+		 * Sets the raw request body. By setting this to a non-empty string, the processRequestBody() function will not try to overwrite it via php://input.
+		 */
+		public function setRawBody(string $body): void
+		{
+			$this->requestBody = $body;
 		}
 
 		public function addParameter(
@@ -205,6 +219,11 @@
 		 */
 		public function processRequestBody(): void
 		{
+			// Populate the requestBody only if it is a blank string
+			if (empty($this->requestBody)) {
+				$this->requestBody = file_get_contents("php://input");
+			}
+
 			// First, check if it's a POST request where the data has already been processed internally
 			// by PHP.
 			$requestMethodLowered = strtolower($_SERVER['REQUEST_METHOD']);

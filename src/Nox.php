@@ -29,7 +29,14 @@
 
 		public function __construct(){
 			if (php_sapi_name() !== "cli") {
-				$requestPath = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+				$urlPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+				
+				if ($urlPath !== null){
+					$requestPath = urldecode($urlPath);
+				}else{
+					$requestPath = "";
+				}
+
 				$requestMethod = $_SERVER['REQUEST_METHOD'];
 			}else{
 				// CLI, command line. Spoof them for now

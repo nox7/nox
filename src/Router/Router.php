@@ -82,6 +82,7 @@
 							if ($cacheTime !== null) {
 
 								header(sprintf("cache-control: max-age=%d", $cacheTime));
+								header("Vary: If-None-Match, etag, last-modified, cache-control");
 
 								$lastModifiedTime = filemtime($staticFilePath);
 								if ($lastModifiedTime !== false){

@@ -30,7 +30,7 @@
 		public function __construct(){
 			if (php_sapi_name() !== "cli") {
 				$urlPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-				
+
 				if ($urlPath !== null){
 					$requestPath = urldecode($urlPath);
 				}else{

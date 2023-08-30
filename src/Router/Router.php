@@ -73,6 +73,9 @@
 				if ($mimeType !== null) {
 					$staticFilePath = $this->noxInstance->staticFileHandler->getFullStaticFilePath($this->requestPath);
 					if ($staticFilePath !== null) {
+						$fileContents = file_get_contents(realpath($staticFilePath));
+						header("content-length: " . strlen($fileContents));
+
 						if (file_exists($staticFilePath) && !is_dir($staticFilePath)){
 							/**
 							 * Set the cache-control header for the given mime type if there is a cache
@@ -100,12 +103,11 @@
 									if ((string) $lastModifiedTime === $ifNoneMatch){
 										// Etags match, set 304 status
 										http_response_code(304);
+										exit();
 									}
 								}
 							}
 
-							$fileContents = file_get_contents(realpath($staticFilePath));
-							header("content-length: " . strlen($fileContents));
 
 							// Only output for GET methods and not HEAD
 							if ($this->requestMethod === "get") {

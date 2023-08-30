@@ -79,10 +79,11 @@
 							 * setting for that mime type.
 							 */
 							$cacheTime = $this->noxInstance->staticFileHandler->getCacheTimeForMime($mimeType);
+							header("content-type: $mimeType");
 							if ($cacheTime !== null) {
 
-								header(sprintf("cache-control: max-age=%d", $cacheTime));
-								header("Vary: If-None-Match, etag, last-modified, cache-control");
+								header(sprintf("cache-control: max-age=%d; must-revalidate", $cacheTime));
+								header("vary: *");
 
 								$lastModifiedTime = filemtime($staticFilePath);
 								if ($lastModifiedTime !== false){
@@ -95,17 +96,15 @@
 									// Check if the client sent an "If-None-Match" header with the same etag used above
 									// If so, simply respond with 304 Not Modified and exit.
 									// Else, don't exit
-									$ifNoneMatch = Request::getFirstHeaderValue("If-None-Match");
+									$ifNoneMatch = $this->currentRequest->getHeaderValue("If-None-Match");
 									if ((string) $lastModifiedTime === $ifNoneMatch){
-										// Etags match, no need to send file. It's not stale
+										// Etags match, set 304 status
 										http_response_code(304);
-										exit();
 									}
 								}
 							}
 
 							$fileContents = file_get_contents(realpath($staticFilePath));
-							header("content-type: $mimeType");
 							header("content-length: " . strlen($fileContents));
 
 							// Only output for GET methods and not HEAD

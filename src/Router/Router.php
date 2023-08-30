@@ -82,8 +82,8 @@
 							header("content-type: $mimeType");
 							if ($cacheTime !== null) {
 
-								header("Vary: If-None-Match, etag, last-modified, cache-control");
 								header(sprintf("cache-control: max-age=%d; must-revalidate", $cacheTime));
+								header("vary: *");
 
 								$lastModifiedTime = filemtime($staticFilePath);
 								if ($lastModifiedTime !== false){

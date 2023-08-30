@@ -17,7 +17,7 @@
 		 * @throws ViewFileDoesNotExist
 		 * @throws LayoutDoesNotExist
 		 */
-		#[Route("PUT", "/")]
+		#[Route("GET", "/")]
 		public function homeView(Request $request): string{
 			return Renderer::renderView("home.html");
 		}

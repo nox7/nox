@@ -34,7 +34,7 @@
 	$nox->mapExtensionToMimeType("svg", "image/svg+xml");
 
 	// Mime caches
-	$nox->addCacheTimeForMime("image/png", 86400 * 60);
+	$nox->addCacheTimeForMime("image/png", 600);
 	$nox->addCacheTimeForMime("image/jpeg", 86400 * 60);
 	$nox->addCacheTimeForMime("text/css", 86400 * 60);
 	$nox->addCacheTimeForMime("text/plain", 86400 * 60);

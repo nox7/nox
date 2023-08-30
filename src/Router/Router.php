@@ -96,11 +96,10 @@
 									// Check if the client sent an "If-None-Match" header with the same etag used above
 									// If so, simply respond with 304 Not Modified and exit.
 									// Else, don't exit
-									$ifNoneMatch = Request::getFirstHeaderValue("If-None-Match");
+									$ifNoneMatch = $this->currentRequest->getHeaderValue("If-None-Match");
 									if ((string) $lastModifiedTime === $ifNoneMatch){
-										// Etags match, no need to send file. It's not stale
+										// Etags match, set 304 status
 										http_response_code(304);
-										exit();
 									}
 								}
 							}

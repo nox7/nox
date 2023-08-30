@@ -79,6 +79,7 @@
 							 * setting for that mime type.
 							 */
 							$cacheTime = $this->noxInstance->staticFileHandler->getCacheTimeForMime($mimeType);
+							header("content-type: $mimeType");
 							if ($cacheTime !== null) {
 
 								header(sprintf("cache-control: max-age=%d", $cacheTime));
@@ -105,7 +106,6 @@
 							}
 
 							$fileContents = file_get_contents(realpath($staticFilePath));
-							header("content-type: $mimeType");
 							header("content-length: " . strlen($fileContents));
 
 							// Only output for GET methods and not HEAD

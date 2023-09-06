@@ -73,10 +73,11 @@
 				if ($mimeType !== null) {
 					$staticFilePath = $this->noxInstance->staticFileHandler->getFullStaticFilePath($this->requestPath);
 					if ($staticFilePath !== null) {
-						$fileContents = file_get_contents(realpath($staticFilePath));
-						header("content-length: " . strlen($fileContents));
-
 						if (file_exists($staticFilePath) && !is_dir($staticFilePath)){
+
+							$fileContents = file_get_contents(realpath($staticFilePath));
+							header("content-length: " . strlen($fileContents));
+
 							/**
 							 * Set the cache-control header for the given mime type if there is a cache
 							 * setting for that mime type.

@@ -23,8 +23,8 @@
 		}
 
 		/**
-		* Lexically parses the file for @ directive tokens
-		*/
+		 * Lexically parses the file for @ directive tokens
+		 */
 		public function parse(){
 			$contents = $this->fileContents;
 			$index = 0;
@@ -56,6 +56,8 @@
 						}elseif ($char === "{" && $prevParserState === "PARSE_DIRECTIVE_NAME"){
 							$prevParserState = "";
 							$parseState = "PARSE_DIRECTIVE_LONG_VALUE";
+						}else{
+							$buffer .= $char;
 						}
 						break;
 					case "PARSE_DIRECTIVE_LONG_VALUE":
@@ -67,7 +69,7 @@
 								$prevParserState = "PARSE_DIRECTIVE_LONG_VALUE";
 								$parseState = "";
 								$tokenDelimiter = "";
-								$directives[$prevDirectiveName] = $buffer;
+								$directives[trim($prevDirectiveName)] = $buffer;
 								$buffer = "";
 							}
 						}elseif ($char === "{"){
@@ -94,7 +96,7 @@
 							// Clear the delimiter from the start and end of the buffer
 							$buffer = trim($buffer, $tokenDelimiter);
 
-							$directives[$prevDirectiveName] = $buffer;
+							$directives[trim($prevDirectiveName)] = $buffer;
 							$buffer = "";
 							$tokenDelimiter = "";
 						}elseif ($char === "\n"){
@@ -107,21 +109,21 @@
 						if ($char === " "){
 							$prevParserState = "PARSE_DIRECTIVE_NAME";
 							$parseState = "";
-							$directives[$buffer] = "";
-							$prevDirectiveName = $buffer;
+							$directives[trim($buffer)] = "";
+							$prevDirectiveName = trim($buffer);
 							$buffer = "";
 						}elseif ($char === "{"){
 							$prevParserState = "PARSE_DIRECTIVE_NAME";
 							$parseState = "PARSE_DIRECTIVE_LONG_VALUE";
-							$directives[$buffer] = "";
-							$prevDirectiveName = $buffer;
+							$directives[trim($buffer)] = "";
+							$prevDirectiveName = trim($buffer);
 							$tokenDelimiter = "}"; // What to expect
 							$buffer = "";
 						}elseif ($char === "="){
 							$prevParserState = "PARSE_DIRECTIVE_NAME";
 							$parseState = "PARSE_DIRECTIVE_SHORT_VALUE";
-							$directives[$buffer] = "";
-							$prevDirectiveName = $buffer;
+							$directives[trim($buffer)] = "";
+							$prevDirectiveName = trim($buffer);
 							$buffer = "";
 						}else{
 							$buffer .= $char;
@@ -147,6 +149,12 @@
 					$trimmedBuffer = rtrim($trimmedBuffer, "}");
 					$trimmedBuffer = trim($trimmedBuffer);
 					$directives[$prevDirectiveName] = $trimmedBuffer;
+				}else{
+					// Add it to the last directive anyway, as this could be a case
+					// of too many closing brackets and the $buffer has the rest of the @Body contents
+					$trimmedBuffer = rtrim($trimmedBuffer, "}");
+					$trimmedBuffer = trim($trimmedBuffer);
+					$directives[$prevDirectiveName] .= $trimmedBuffer;
 				}
 			}
 

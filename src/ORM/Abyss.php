@@ -296,9 +296,9 @@
 		 */
 		public function fetchInstances(
 			MySQLModelInterface $model,
-			ColumnQuery $columnQuery = null,
-			ResultOrder $resultOrder = null,
-			Pager $pager = null,
+			ColumnQuery|null $columnQuery = null,
+			ResultOrder|null $resultOrder = null,
+			Pager|null $pager = null,
 		): array{
 
 			$instancesFetched = [];

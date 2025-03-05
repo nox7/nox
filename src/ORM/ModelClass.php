@@ -28,9 +28,9 @@
 		 * the provided parameters. Will always return an array, but the array may be empty.
 		 */
 		public static function query(
-			ColumnQuery $columnQuery = null,
-			ResultOrder $resultOrder = null,
-			Pager $pager = null,
+			ColumnQuery|null $columnQuery = null,
+			ResultOrder|null $resultOrder = null,
+			Pager|null $pager = null,
 		): array {
 			$abyss = new Abyss();
 			return $abyss->fetchInstances(
@@ -46,9 +46,9 @@
 		 * that meets the criteria provided, or null.
 		 */
 		public static function queryOne(
-			ColumnQuery $columnQuery = null,
-			ResultOrder $resultOrder = null,
-			Pager $pager = null,
+			ColumnQuery|null $columnQuery = null,
+			ResultOrder|null $resultOrder = null,
+			Pager|null $pager = null,
 		): ?ModelClass {
 			/** @var ModelClass[] $modelClasses */
 			$modelClasses = self::query(
@@ -70,7 +70,7 @@
 		 * and provided $columnQuery
 		 */
 		public static function count(
-			ColumnQuery $columnQuery = null,
+			ColumnQuery|null $columnQuery = null,
 		): int {
 			$model = static::getModel();
 			$abyss = new Abyss();
